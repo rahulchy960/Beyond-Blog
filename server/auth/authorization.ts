@@ -1,22 +1,22 @@
 import "server-only";
 import { auth } from "@clerk/nextjs/server";
-import { Role, type User } from "@prisma/client";
+import type { AdminUser } from "@prisma/client";
 import { redirect } from "next/navigation";
-import { getDatabaseUserByClerkId, syncCurrentUser } from "@/server/auth/sync-user";
+import { getAdminByClerkUserId, syncSignedInAdminUser } from "@/server/auth/admin-user";
 
-export async function requireAdminRouteUser(): Promise<User> {
+export async function requireAdminRouteUser(): Promise<AdminUser> {
   const { userId } = await auth();
 
   if (!userId) {
     redirect("/sign-in");
   }
 
-  const syncedUser = await syncCurrentUser();
-  const dbUser = syncedUser ?? (await getDatabaseUserByClerkId(userId));
+  const syncedAdmin = await syncSignedInAdminUser();
+  const dbAdmin = syncedAdmin ?? (await getAdminByClerkUserId(userId));
 
-  if (!dbUser || dbUser.role !== Role.ADMIN) {
+  if (!dbAdmin || !dbAdmin.isActive) {
     redirect("/unauthorized");
   }
 
-  return dbUser;
+  return dbAdmin;
 }

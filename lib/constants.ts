@@ -1,4 +1,4 @@
-export const platformName = "Professor Academic Platform";
+export const platformName = "Beyond Blog";
 
 export const primaryNavigation = [
   {

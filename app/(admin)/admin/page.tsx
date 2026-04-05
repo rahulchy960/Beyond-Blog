@@ -9,7 +9,7 @@ export default function AdminDashboardPage() {
         <div className="space-y-3">
           <Badge variant="outline">Admin dashboard</Badge>
           <h1 className="font-heading text-3xl font-semibold tracking-tight">
-            Professor control panel
+            Beyond Blog control panel
           </h1>
           <p className="text-sm text-muted-foreground md:text-base">
             Initial analytics placeholders are active. Content management modules

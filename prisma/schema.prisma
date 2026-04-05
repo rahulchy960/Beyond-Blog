@@ -6,19 +6,328 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  ADMIN
-  USER
+enum AdminRole {
+  OWNER
 }
 
-model User {
-  id          String   @id @default(cuid())
-  clerkUserId String   @unique
-  email       String   @unique
+enum ContentType {
+  JOURNAL
+  ARTICLE
+  PROJECT
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  FILE
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum CommentStatus {
+  VISIBLE
+  HIDDEN
+  DELETED
+}
+
+model AdminUser {
+  id          String    @id @default(cuid())
+  clerkUserId String    @unique
+  email       String    @unique
   firstName   String?
   lastName    String?
   imageUrl    String?
-  role        Role     @default(USER)
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  role        AdminRole @default(OWNER) @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  contents            Content[]    @relation("AdminAuthoredContent")
+  uploadedMediaAssets MediaAsset[] @relation("AdminUploadedMedia")
+  moderatedComments   Comment[]    @relation("CommentModeratedByAdmin")
+  quizzes             Quiz[]       @relation("QuizCreatedByAdmin")
+  auditLogs           AuditLog[]
+}
+
+model Content {
+  id               String        @id @default(cuid())
+  title            String
+  slug             String        @unique
+  summary          String?       @db.Text
+  /// Practical rich text strategy: persist sanitized HTML for rendering, with optional JSON editor state for future migrations/editing.
+  bodyHtml         String        @db.Text
+  bodyJson         Json?
+  type             ContentType
+  publishStatus    PublishStatus @default(DRAFT)
+  isFeatured       Boolean       @default(false)
+  seoTitle         String?
+  seoDescription   String?       @db.Text
+  publishedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  authorId         String
+  categoryId       String?
+  coverImageAssetId String?
+
+  author     AdminUser   @relation("AdminAuthoredContent", fields: [authorId], references: [id], onDelete: Restrict)
+  category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  coverImage MediaAsset? @relation("ContentCoverImage", fields: [coverImageAssetId], references: [id], onDelete: SetNull)
+  tags       ContentTag[]
+  mediaAssets MediaAsset[] @relation("ContentMediaAssets")
+  comments   Comment[]
+  likes      ContentLike[]
+  quizzes    Quiz[]
+
+  @@index([type, publishStatus])
+  @@index([publishStatus, publishedAt])
+  @@index([isFeatured, publishedAt])
+  @@index([authorId, createdAt])
+  @@index([categoryId, publishStatus])
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  contents Content[]
+
+  @@index([isActive, sortOrder])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contentTags ContentTag[]
+
+  @@index([name])
+}
+
+model ContentTag {
+  contentId String
+  tagId     String
+  assignedAt DateTime @default(now())
+
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contentId, tagId])
+  @@index([tagId])
+}
+
+model MediaAsset {
+  id               String    @id @default(cuid())
+  type             MediaType
+  storageProvider  String?
+  storageKey       String?
+  url              String
+  thumbnailUrl     String?
+  altText          String?
+  caption          String?   @db.Text
+  mimeType         String
+  sizeBytes        Int
+  width            Int?
+  height           Int?
+  durationSeconds  Int?
+  originalFilename String?
+  contentId        String?
+  uploadedByAdminId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  content         Content?   @relation("ContentMediaAssets", fields: [contentId], references: [id], onDelete: SetNull)
+  coverForContents Content[] @relation("ContentCoverImage")
+  uploadedByAdmin AdminUser? @relation("AdminUploadedMedia", fields: [uploadedByAdminId], references: [id], onDelete: SetNull)
+
+  @@unique([storageProvider, storageKey])
+  @@index([contentId, type])
+  @@index([uploadedByAdminId, createdAt])
+  @@index([createdAt])
+}
+
+model Comment {
+  id                 String        @id @default(cuid())
+  contentId          String
+  parentId           String?
+  guestName          String
+  guestEmail         String?
+  guestWebsite       String?
+  guestFingerprintHash String?
+  body               String        @db.Text
+  status             CommentStatus @default(VISIBLE)
+  moderationNote     String?       @db.Text
+  moderatedByAdminId String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  content          Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  parent           Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: SetNull)
+  replies          Comment[] @relation("CommentThread")
+  moderatedByAdmin AdminUser? @relation("CommentModeratedByAdmin", fields: [moderatedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([contentId, status, createdAt])
+  @@index([parentId])
+  @@index([guestEmail])
+}
+
+model ContentLike {
+  id               String   @id @default(cuid())
+  contentId        String
+  /// SHA-256 (or equivalent) hash of anonymous visitor token/fingerprint. No raw IP is stored.
+  visitorTokenHash String
+  createdAt        DateTime @default(now())
+
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([contentId, visitorTokenHash])
+  @@index([contentId, createdAt])
+}
+
+model Quiz {
+  id                        String     @id @default(cuid())
+  title                     String
+  slug                      String     @unique
+  description               String?    @db.Text
+  status                    QuizStatus @default(DRAFT)
+  showAnswersAfterSubmit    Boolean    @default(true)
+  allowMultipleAttempts     Boolean    @default(true)
+  timeLimitSeconds          Int?
+  passingScore              Int?
+  contentId                 String?
+  createdByAdminId          String
+  publishedAt               DateTime?
+  createdAt                 DateTime   @default(now())
+  updatedAt                 DateTime   @updatedAt
+
+  content        Content?      @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  createdByAdmin AdminUser     @relation("QuizCreatedByAdmin", fields: [createdByAdminId], references: [id], onDelete: Restrict)
+  questions      QuizQuestion[]
+  attempts       QuizAttempt[]
+
+  @@index([status, publishedAt])
+  @@index([contentId])
+  @@index([createdByAdminId, createdAt])
+}
+
+model QuizQuestion {
+  id                      String   @id @default(cuid())
+  quizId                  String
+  questionText            String   @db.Text
+  position                Int
+  explanation             String?  @db.Text
+  points                  Int      @default(1)
+  allowMultipleSelections Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options QuizOption[]
+  answers QuizAnswer[]
+
+  @@unique([quizId, position])
+  @@index([quizId])
+}
+
+model QuizOption {
+  id         String   @id @default(cuid())
+  questionId String
+  optionText String   @db.Text
+  isCorrect  Boolean  @default(false)
+  position   Int
+  createdAt  DateTime @default(now())
+
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  QuizAnswer[]
+
+  @@unique([questionId, position])
+  @@index([questionId])
+}
+
+model QuizAttempt {
+  id               String   @id @default(cuid())
+  quizId           String
+  guestName        String?
+  guestEmail       String?
+  visitorTokenHash String?
+  startedAt        DateTime @default(now())
+  submittedAt      DateTime?
+  score            Int?
+  totalPoints      Int?
+  passed           Boolean?
+  timeSpentSeconds Int?
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+
+  @@index([quizId, startedAt])
+  @@index([guestEmail])
+  @@index([visitorTokenHash])
+}
+
+model QuizAnswer {
+  id         String   @id @default(cuid())
+  attemptId  String
+  questionId String
+  optionId   String
+  createdAt  DateTime @default(now())
+
+  attempt  QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  option   QuizOption   @relation(fields: [optionId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, questionId, optionId])
+  @@index([attemptId, questionId])
+}
+
+model SiteSetting {
+  id                                 String   @id @default(cuid())
+  singletonKey                       String   @unique @default("SITE_SETTINGS")
+  siteTitle                          String   @default("Beyond Blog")
+  siteSubtitle                       String?
+  homepageHeroText                   String?  @db.Text
+  contactEmail                       String?
+  socialLinks                        Json?
+  commentModerationEnabled           Boolean  @default(true)
+  defaultQuizShowAnswersAfterSubmit  Boolean  @default(true)
+  defaultQuizAllowMultipleAttempts   Boolean  @default(true)
+  defaultQuizTimeLimitSeconds        Int?
+  defaultQuizPassingScore            Int?
+  createdAt                          DateTime @default(now())
+  updatedAt                          DateTime @updatedAt
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  action       String
+  entityType   String
+  entityId     String
+  metadata     Json?
+  adminUserId  String
+  createdAt    DateTime @default(now())
+
+  adminUser AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([adminUserId, createdAt])
+  @@index([action, createdAt])
 }

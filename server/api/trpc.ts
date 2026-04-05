@@ -34,31 +34,23 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
 
-  const dbUser = await ctx.db.user.findUnique({
+  const adminUser = await ctx.db.adminUser.findUnique({
     where: { clerkUserId: ctx.userId },
   });
 
-  if (!dbUser) {
+  if (!adminUser || !adminUser.isActive) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
-      message: "User does not exist in database. Sign in again to sync your profile.",
+      message: "Admin authorization required.",
     });
   }
 
   return next({
     ctx: {
       ...ctx,
-      dbUser,
+      adminUser,
     },
   });
 });
 
-export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.dbUser.role !== "ADMIN") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Admin role required" });
-  }
-
-  return next({
-    ctx,
-  });
-});
+export const adminProcedure = protectedProcedure;

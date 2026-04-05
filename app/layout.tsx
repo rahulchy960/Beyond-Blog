@@ -2,16 +2,16 @@ import type { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import { SiteHeader } from "@/components/layout/site-header";
 import { AppProviders } from "@/components/providers/app-providers";
-import { syncCurrentUser } from "@/server/auth/sync-user";
+import { syncSignedInAdminUser } from "@/server/auth/admin-user";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Professor Academic Platform",
-    template: "%s | Professor Academic Platform",
+    default: "Beyond Blog",
+    template: "%s | Beyond Blog",
   },
   description:
-    "Production-ready academic content platform foundation for journals, projects, articles, media, and quizzes.",
+    "Beyond Blog: journals, articles, projects, media, and public quizzes.",
 };
 
 export default async function RootLayout({
@@ -23,9 +23,9 @@ export default async function RootLayout({
 
   if (userId) {
     try {
-      await syncCurrentUser();
+      await syncSignedInAdminUser();
     } catch (error) {
-      console.error("User sync failed:", error);
+      console.error("Admin sync failed:", error);
     }
   }
 
