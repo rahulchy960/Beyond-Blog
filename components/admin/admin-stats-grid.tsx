@@ -1,57 +1,54 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "motion/react";
+import { BookOpenTextIcon, CheckCircle2Icon, ClipboardEditIcon, MessageSquareIcon, SparklesIcon } from "lucide-react";
 import { useTRPC } from "@/hooks/use-trpc";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { MetricCard } from "@/components/ui/metric-card";
+import { MetricCardSkeletonGrid } from "@/components/ui/loading-skeletons";
+
+const METRIC_ICONS = [
+  BookOpenTextIcon,
+  CheckCircle2Icon,
+  ClipboardEditIcon,
+  MessageSquareIcon,
+  SparklesIcon,
+] as const;
 
 export function AdminStatsGrid() {
   const trpc = useTRPC();
   const dashboardStatsQuery = useQuery(trpc.admin.dashboardStats.queryOptions());
 
   if (dashboardStatsQuery.isPending) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Card key={`admin-stats-loading-${index}`}>
-            <CardHeader>
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-40" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-7 w-16" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
+    return <MetricCardSkeletonGrid />;
   }
 
   if (dashboardStatsQuery.isError) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Unable to load dashboard stats</CardTitle>
-          <CardDescription>
-            {dashboardStatsQuery.error.message || "An unexpected error occurred."}
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <EmptyState
+        title="Unable to load dashboard metrics"
+        description={dashboardStatsQuery.error.message || "An unexpected error occurred while loading metrics."}
+      />
     );
   }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-      {dashboardStatsQuery.data.map((stat) => (
-        <Card key={stat.title}>
-          <CardHeader>
-            <CardTitle>{stat.title}</CardTitle>
-            <CardDescription>{stat.description}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="font-heading text-3xl font-semibold tracking-tight">{stat.value}</p>
-          </CardContent>
-        </Card>
+      {dashboardStatsQuery.data.map((stat, index) => (
+        <motion.div
+          key={stat.title}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.24, ease: "easeOut", delay: index * 0.03 }}
+        >
+          <MetricCard
+            title={stat.title}
+            value={stat.value}
+            description={stat.description}
+            icon={METRIC_ICONS[index] ?? BookOpenTextIcon}
+          />
+        </motion.div>
       ))}
     </div>
   );

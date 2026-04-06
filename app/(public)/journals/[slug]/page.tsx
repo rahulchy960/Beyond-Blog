@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { CONTENT_TYPE } from "@/lib/content/enums";
 import { PublicContentArticle } from "@/components/content/public-content-article";
 import { SiteContainer } from "@/components/layout/site-container";
+import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { getServerCaller } from "@/server/api/caller";
 
 type JournalDetailPageProps = {
@@ -24,7 +25,9 @@ export default async function JournalDetailPage({ params }: JournalDetailPagePro
 
   return (
     <SiteContainer>
-      <PublicContentArticle type={CONTENT_TYPE.JOURNAL} content={content} />
+      <AnimatedPageWrapper>
+        <PublicContentArticle type={CONTENT_TYPE.JOURNAL} content={content} />
+      </AnimatedPageWrapper>
     </SiteContainer>
   );
 }

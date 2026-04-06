@@ -1,34 +1,29 @@
 import Link from "next/link";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowLeftIcon, WrenchIcon } from "lucide-react";
 import { buttonVariants } from "@/lib/ui/button-variants";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 type AdminSectionPlaceholderProps = {
   title: string;
   description: string;
 };
 
-export function AdminSectionPlaceholder({
-  title,
-  description,
-}: AdminSectionPlaceholderProps) {
+export function AdminSectionPlaceholder({ title, description }: AdminSectionPlaceholderProps) {
   return (
-    <div className="mx-auto w-full max-w-6xl">
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            This section is scaffolded for the upcoming CRUD and moderation workflows.
-          </p>
+    <div className="space-y-6">
+      <PageHeader title={title} description={description} />
+      <EmptyState
+        icon={WrenchIcon}
+        title={`${title} is ready for implementation`}
+        description="This section has the base layout and authorization guard in place. CRUD and operational workflows can now be integrated."
+        action={
           <Link href="/admin" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <ArrowLeftIcon className="size-4" />
             Back to dashboard
-            <ArrowRightIcon className="size-4" />
           </Link>
-        </CardContent>
-      </Card>
+        }
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { CONTENT_TYPE } from "@/lib/content/enums";
+import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { PublicContentList } from "@/components/content/public-content-list";
 import { SiteContainer } from "@/components/layout/site-container";
 import { getServerCaller } from "@/server/api/caller";
@@ -11,9 +12,11 @@ export default async function ProjectsPage() {
   });
 
   return (
-    <div className="py-10 md:py-14">
+    <div className="py-12 md:py-16">
       <SiteContainer>
-        <PublicContentList type={CONTENT_TYPE.PROJECT} items={items} />
+        <AnimatedPageWrapper>
+          <PublicContentList type={CONTENT_TYPE.PROJECT} items={items} />
+        </AnimatedPageWrapper>
       </SiteContainer>
     </div>
   );

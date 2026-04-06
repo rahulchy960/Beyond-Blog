@@ -1,3 +1,4 @@
+import { PublicFooter } from "@/components/layout/public-footer";
 import { PublicHeader } from "@/components/layout/public-header";
 
 type AuthLayoutProps = {
@@ -6,9 +7,10 @@ type AuthLayoutProps = {
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="relative flex min-h-screen flex-col">
       <PublicHeader />
       <main className="flex-1">{children}</main>
+      <PublicFooter />
     </div>
   );
 }

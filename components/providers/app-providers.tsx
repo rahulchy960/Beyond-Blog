@@ -1,5 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { TRPCReactQueryProvider } from "@/components/providers/trpc-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 
 type AppProvidersProps = {
   children: React.ReactNode;
@@ -8,7 +9,9 @@ type AppProvidersProps = {
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <ClerkProvider>
-      <TRPCReactQueryProvider>{children}</TRPCReactQueryProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <TRPCReactQueryProvider>{children}</TRPCReactQueryProvider>
+      </ThemeProvider>
     </ClerkProvider>
   );
 }

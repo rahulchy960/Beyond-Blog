@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, SendHorizonalIcon, SaveIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -24,9 +24,11 @@ import { slugifyText } from "@/lib/content/slug";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/ui/page-header";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -149,6 +151,17 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
   );
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const editorTitle = mode === "create" ? `New ${contentMeta.singular}` : `Edit ${contentMeta.singular}`;
+
+  const saveDraft = () => {
+    form.setValue("publishStatus", PUBLISH_STATUS.DRAFT, { shouldValidate: true });
+    form.handleSubmit(onSubmit)();
+  };
+
+  const publish = () => {
+    form.setValue("publishStatus", PUBLISH_STATUS.PUBLISHED, { shouldValidate: true });
+    form.handleSubmit(onSubmit)();
+  };
 
   const onSubmit = (values: EditorFormValues) => {
     const payload = {
@@ -182,42 +195,45 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
   const availableTags = useMemo(() => tagsQuery.data ?? [], [tagsQuery.data]);
 
   if (mode === "edit" && contentQuery.isPending) {
-    return <div className="rounded-xl border border-border/80 bg-card/60 p-6 text-sm">Loading...</div>;
+    return <div className="surface-panel rounded-xl p-6 text-sm">Loading...</div>;
   }
 
   if (mode === "edit" && contentQuery.error) {
     return (
-      <div className="rounded-xl border border-destructive/40 bg-card/60 p-6 text-sm text-destructive">
+      <div className="surface-panel rounded-xl border-destructive/50 p-6 text-sm text-destructive">
         {contentQuery.error.message}
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Link
-            href={contentMeta.adminBasePath}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
-          >
-            <ArrowLeftIcon className="size-4" />
-            Back to {contentMeta.plural}
-          </Link>
-          {mode === "edit" ? (
-            <ContentStatusBadge status={publishStatusValue} />
-          ) : null}
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title={editorTitle}
+        description={`Draft, publish, and maintain ${contentMeta.plural.toLowerCase()} in a consistent editorial workflow.`}
+        currentLabel={editorTitle}
+        actions={
+          <>
+            <Link
+              href={contentMeta.adminBasePath}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+            >
+              <ArrowLeftIcon className="size-4" />
+              Back to {contentMeta.plural}
+            </Link>
+            {mode === "edit" ? <ContentStatusBadge status={publishStatusValue} /> : null}
+          </>
+        }
+      />
 
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="grid gap-6 lg:grid-cols-[1fr_320px]"
+        className="grid gap-6 lg:grid-cols-[1fr_330px]"
       >
-        <div className="space-y-6">
-          <Card>
+        <AnimatedPageWrapper className="space-y-6">
+          <Card className="surface-panel">
             <CardHeader>
-              <CardTitle>{mode === "create" ? `New ${contentMeta.singular}` : "Edit Content"}</CardTitle>
+              <CardTitle>{editorTitle}</CardTitle>
               <CardDescription>
                 Draft, publish, and archive entries using one consistent editorial workflow.
               </CardDescription>
@@ -281,16 +297,24 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
             </CardContent>
           </Card>
 
-          <SeoFields
-            seoTitle={seoTitleValue}
-            seoDescription={seoDescriptionValue}
-            onSeoTitleChange={(value) => form.setValue("seoTitle", value)}
-            onSeoDescriptionChange={(value) => form.setValue("seoDescription", value)}
-          />
-        </div>
+          <Card className="surface-panel">
+            <CardHeader>
+              <CardTitle>SEO</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SeoFields
+                seoTitle={seoTitleValue}
+                seoDescription={seoDescriptionValue}
+                onSeoTitleChange={(value) => form.setValue("seoTitle", value)}
+                onSeoDescriptionChange={(value) => form.setValue("seoDescription", value)}
+                showHeader={false}
+              />
+            </CardContent>
+          </Card>
+        </AnimatedPageWrapper>
 
-        <aside className="space-y-6">
-          <Card>
+        <AnimatedPageWrapper delay={0.04} className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <Card className="surface-panel">
             <CardHeader>
               <CardTitle>Publish</CardTitle>
               <CardDescription>Control status and visibility.</CardDescription>
@@ -333,28 +357,24 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
                   type="button"
                   variant="outline"
                   disabled={isSubmitting}
-                  onClick={() => {
-                    form.setValue("publishStatus", PUBLISH_STATUS.DRAFT, { shouldValidate: true });
-                    form.handleSubmit(onSubmit)();
-                  }}
+                  onClick={saveDraft}
                 >
+                  <SaveIcon className="size-4" />
                   Save Draft
                 </Button>
                 <Button
                   type="button"
                   disabled={isSubmitting}
-                  onClick={() => {
-                    form.setValue("publishStatus", PUBLISH_STATUS.PUBLISHED, { shouldValidate: true });
-                    form.handleSubmit(onSubmit)();
-                  }}
+                  onClick={publish}
                 >
+                  <SendHorizonalIcon className="size-4" />
                   Publish
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="surface-panel">
             <CardHeader>
               <CardTitle>Metadata</CardTitle>
             </CardHeader>
@@ -381,7 +401,7 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
               />
             </CardContent>
           </Card>
-        </aside>
+        </AnimatedPageWrapper>
       </form>
     </div>
   );

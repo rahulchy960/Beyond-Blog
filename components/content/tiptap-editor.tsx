@@ -62,7 +62,7 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
     editorProps: {
       attributes: {
         class:
-          "min-h-[340px] w-full rounded-lg border border-border bg-card px-4 py-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "min-h-[360px] w-full rounded-xl border border-border/70 bg-background px-4 py-3 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring",
       },
     },
     onUpdate: ({ editor: tiptapEditor }) => {
@@ -83,13 +83,13 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
 
   if (!editor) {
     return (
-      <div className="min-h-[340px] animate-pulse rounded-lg border border-border bg-card" />
+      <div className="min-h-[360px] animate-pulse rounded-xl border border-border/70 bg-muted/45" />
     );
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-1 rounded-lg border border-border/80 bg-muted/40 p-2">
+    <div className="surface-panel space-y-3 p-3">
+      <div className="flex flex-wrap gap-1 rounded-lg border border-border/70 bg-muted/55 p-2">
         <ToolbarButton
           label="Paragraph"
           icon={<PilcrowIcon className="size-4" />}
@@ -114,6 +114,7 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
           active={editor.isActive("heading", { level: 3 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
         />
+        <span className="mx-1 h-6 w-px bg-border" />
         <ToolbarButton
           label="Bold"
           icon={<BoldIcon className="size-4" />}
@@ -126,6 +127,7 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
           active={editor.isActive("italic")}
           onClick={() => editor.chain().focus().toggleItalic().run()}
         />
+        <span className="mx-1 h-6 w-px bg-border" />
         <ToolbarButton
           label="Bulleted list"
           icon={<ListIcon className="size-4" />}
@@ -150,6 +152,7 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
           active={editor.isActive("codeBlock")}
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
         />
+        <span className="mx-1 h-6 w-px bg-border" />
         <ToolbarButton
           label="Horizontal rule"
           icon={<MinusIcon className="size-4" />}

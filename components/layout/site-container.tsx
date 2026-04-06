@@ -5,7 +5,7 @@ type SiteContainerProps = React.ComponentProps<"div">;
 export function SiteContainer({ className, ...props }: SiteContainerProps) {
   return (
     <div
-      className={cn("mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8", className)}
+      className={cn("mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8", className)}
       {...props}
     />
   );

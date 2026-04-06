@@ -8,12 +8,12 @@ type ContentStatusBadgeProps = {
 
 export function ContentStatusBadge({ status }: ContentStatusBadgeProps) {
   if (status === PUBLISH_STATUS.PUBLISHED) {
-    return <Badge>{publishStatusLabels[status]}</Badge>;
+    return <Badge className="uppercase">{publishStatusLabels[status]}</Badge>;
   }
 
   if (status === PUBLISH_STATUS.ARCHIVED) {
-    return <Badge variant="secondary">{publishStatusLabels[status]}</Badge>;
+    return <Badge variant="secondary" className="uppercase">{publishStatusLabels[status]}</Badge>;
   }
 
-  return <Badge variant="outline">{publishStatusLabels[status]}</Badge>;
+  return <Badge variant="outline" className="uppercase">{publishStatusLabels[status]}</Badge>;
 }

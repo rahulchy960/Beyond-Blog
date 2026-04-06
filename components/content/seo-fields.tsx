@@ -7,6 +7,7 @@ type SeoFieldsProps = {
   seoDescription: string;
   onSeoTitleChange: (value: string) => void;
   onSeoDescriptionChange: (value: string) => void;
+  showHeader?: boolean;
 };
 
 export function SeoFields({
@@ -14,15 +15,18 @@ export function SeoFields({
   seoDescription,
   onSeoTitleChange,
   onSeoDescriptionChange,
+  showHeader = true,
 }: SeoFieldsProps) {
   return (
-    <section className="space-y-4 rounded-xl border border-border/80 bg-card/60 p-4">
-      <div>
+    <section className="space-y-4">
+      {showHeader ? (
+        <div>
         <h3 className="font-heading text-lg font-semibold">SEO</h3>
         <p className="text-sm text-muted-foreground">
           Optional metadata used for previews and search indexing.
         </p>
-      </div>
+        </div>
+      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="seoTitle">SEO Title</Label>
