@@ -2,7 +2,7 @@
 
 import { MonitorCogIcon, MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
 import {
@@ -30,17 +30,14 @@ const THEME_ITEMS = [
   },
 ] as const;
 
+const subscribe = () => () => undefined;
+
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const isClient = useSyncExternalStore(subscribe, () => true, () => false);
+  const activeTheme = isClient ? theme : "system";
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const activeTheme = mounted ? theme : "system";
-  const ActiveIcon =
-    THEME_ITEMS.find((item) => item.value === activeTheme)?.icon ?? MonitorCogIcon;
+  const ActiveIcon = activeTheme === "light" ? SunIcon : activeTheme === "dark" ? MoonIcon : MonitorCogIcon;
 
   return (
     <DropdownMenu>

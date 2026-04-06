@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftIcon, SendHorizonalIcon, SaveIcon } from "lucide-react";
+import { ArrowLeftIcon, ImageIcon, SaveIcon, SendHorizonalIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -15,6 +15,8 @@ import { SeoFields } from "@/components/content/seo-fields";
 import { SlugInput } from "@/components/content/slug-input";
 import { TagSelector } from "@/components/content/tag-selector";
 import { TiptapEditor } from "@/components/content/tiptap-editor";
+import { MediaPickerDialog } from "@/components/media/media-picker-dialog";
+import { MediaPreview } from "@/components/media/media-preview";
 import { useTRPC } from "@/hooks/use-trpc";
 import { PUBLISH_STATUS, type ContentType, type PublishStatus } from "@/lib/content/enums";
 import { contentTypeMeta, publishStatusOptions } from "@/lib/content/constants";
@@ -45,6 +47,18 @@ type ContentEditorFormProps = {
   contentId?: string;
 };
 
+type CoverMediaPreview = {
+  id: string;
+  type: "IMAGE";
+  url: string;
+  thumbnailUrl: string | null;
+  altText: string | null;
+  title: string | null;
+  originalFilename: string | null;
+  mimeType: string;
+  sizeBytes: number;
+};
+
 function getDefaultValues(type: ContentType): EditorFormValues {
   return {
     title: "",
@@ -52,7 +66,7 @@ function getDefaultValues(type: ContentType): EditorFormValues {
     summary: "",
     bodyJson: emptyRichTextDocument,
     type,
-    coverImageUrl: "",
+    coverImageAssetId: null,
     categoryId: null,
     tagNames: [],
     isFeatured: false,
@@ -68,6 +82,8 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
   const queryClient = useQueryClient();
   const contentMeta = contentTypeMeta[type];
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+  const [pickedCoverMedia, setPickedCoverMedia] = useState<CoverMediaPreview | null>(null);
 
   const form = useForm<EditorFormValues>({
     resolver: zodResolver(editorFormSchema),
@@ -96,7 +112,7 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
       summary: contentQuery.data.summary ?? "",
       bodyJson: contentQuery.data.bodyJson as EditorFormValues["bodyJson"],
       type: contentQuery.data.type,
-      coverImageUrl: contentQuery.data.coverImageUrl ?? "",
+      coverImageAssetId: contentQuery.data.coverImageAssetId ?? null,
       categoryId: contentQuery.data.categoryId,
       tagNames: contentQuery.data.tagNames,
       isFeatured: contentQuery.data.isFeatured,
@@ -104,6 +120,7 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
       seoDescription: contentQuery.data.seoDescription ?? "",
       publishStatus: contentQuery.data.publishStatus,
     });
+
   }, [contentQuery.data, form]);
 
   const titleValue = useWatch({ control: form.control, name: "title" }) ?? "";
@@ -116,6 +133,30 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
   const isFeaturedValue = useWatch({ control: form.control, name: "isFeatured" }) ?? false;
   const categoryIdValue = useWatch({ control: form.control, name: "categoryId" }) ?? "none";
   const tagNamesValue = useWatch({ control: form.control, name: "tagNames" }) ?? [];
+  const coverImageAssetIdValue = useWatch({ control: form.control, name: "coverImageAssetId" }) ?? null;
+
+  const selectedCoverMedia = useMemo<CoverMediaPreview | null>(() => {
+    if (pickedCoverMedia && pickedCoverMedia.id === coverImageAssetIdValue) {
+      return pickedCoverMedia;
+    }
+
+    const coverImage = contentQuery.data?.coverImage;
+    if (!coverImage || coverImage.id !== coverImageAssetIdValue) {
+      return null;
+    }
+
+    return {
+      id: coverImage.id,
+      type: "IMAGE",
+      url: coverImage.url,
+      thumbnailUrl: coverImage.url,
+      altText: coverImage.altText,
+      title: coverImage.altText ?? null,
+      originalFilename: null,
+      mimeType: "image/*",
+      sizeBytes: 0,
+    };
+  }, [pickedCoverMedia, coverImageAssetIdValue, contentQuery.data?.coverImage]);
 
   useEffect(() => {
     if (slugManuallyEdited) {
@@ -167,7 +208,7 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
     const payload = {
       ...values,
       categoryId: values.categoryId && values.categoryId !== "none" ? values.categoryId : null,
-      coverImageUrl: values.coverImageUrl?.trim() ? values.coverImageUrl.trim() : null,
+      coverImageAssetId: values.coverImageAssetId ? values.coverImageAssetId : null,
       summary: values.summary?.trim() ? values.summary.trim() : null,
       seoTitle: values.seoTitle?.trim() ? values.seoTitle.trim() : null,
       seoDescription: values.seoDescription?.trim() ? values.seoDescription.trim() : null,
@@ -380,12 +421,33 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="coverImageUrl">Cover Image URL</Label>
-                <Input
-                  id="coverImageUrl"
-                  placeholder="https://..."
-                  {...form.register("coverImageUrl")}
-                />
+                <Label>Cover Image</Label>
+                <MediaPreview media={selectedCoverMedia} compact />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsMediaPickerOpen(true)}
+                  >
+                    <ImageIcon className="size-4" />
+                    Select from library
+                  </Button>
+                  {selectedCoverMedia ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setPickedCoverMedia(null);
+                        form.setValue("coverImageAssetId", null, { shouldValidate: true });
+                      }}
+                    >
+                      <XIcon className="size-4" />
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
               </div>
 
               <CategorySelector
@@ -403,6 +465,18 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
           </Card>
         </AnimatedPageWrapper>
       </form>
+
+      <MediaPickerDialog
+        open={isMediaPickerOpen}
+        onOpenChange={setIsMediaPickerOpen}
+        onSelect={(media) => {
+          setPickedCoverMedia({
+            ...media,
+            type: "IMAGE",
+          });
+          form.setValue("coverImageAssetId", media.id, { shouldValidate: true });
+        }}
+      />
     </div>
   );
 }

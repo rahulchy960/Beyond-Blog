@@ -138,8 +138,12 @@ model ContentTag {
 model MediaAsset {
   id               String    @id @default(cuid())
   type             MediaType
+  title            String?
   storageProvider  String?
   storageKey       String?
+  providerAssetId  String?
+  externalUrl      String?
+  playbackUrl      String?
   url              String
   thumbnailUrl     String?
   altText          String?

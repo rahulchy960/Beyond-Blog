@@ -1,10 +1,5 @@
-import { AdminSectionPlaceholder } from "@/components/admin/admin-section-placeholder";
+import { MediaLibraryAdminScreen } from "@/components/media/media-library-admin-screen";
 
 export default function AdminMediaPage() {
-  return (
-    <AdminSectionPlaceholder
-      title="Media Library"
-      description="Upload and organize images, videos, and files for editorial content."
-    />
-  );
+  return <MediaLibraryAdminScreen />;
 }

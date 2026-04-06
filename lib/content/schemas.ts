@@ -20,7 +20,7 @@ export const contentWriteSchema = z.object({
   summary: z.string().trim().max(3000).optional().nullable(),
   bodyJson: contentBodySchema,
   type: z.enum(CONTENT_TYPES),
-  coverImageUrl: z.string().trim().url().optional().nullable(),
+  coverImageAssetId: z.string().trim().min(1).optional().nullable(),
   categoryId: z.string().trim().min(1).optional().nullable(),
   tagNames: z.array(z.string().trim().min(1).max(64)).max(20),
   isFeatured: z.boolean(),

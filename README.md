@@ -10,6 +10,7 @@ Production-ready Next.js App Router foundation for a professor-led academic publ
 - tRPC v11 + TanStack React Query v5
 - Prisma v7 + Neon PostgreSQL
 - Zod
+- UploadThing (media uploads)
 
 ## Quick Start
 
@@ -25,6 +26,12 @@ npm run db:generate
 npm run db:push
 npm run db:seed
 npm run dev
+```
+
+If you updated schema fields, also run:
+
+```bash
+npm run db:migrate -- --name add_media_library_fields
 ```
 
 ## Single Admin Setup
@@ -92,11 +99,34 @@ Rich text storage strategy:
 - Enable the application with your desired sign-in method.
 - Set:
   - `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
-  - `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`
+  - `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-in`
 - Ensure allowed redirect URLs include:
   - `http://localhost:3000/sign-in`
   - `http://localhost:3000/admin`
   - `http://localhost:3000/unauthorized`
+
+## UploadThing Setup
+
+1. Create an UploadThing app and copy its token.
+2. Add `UPLOADTHING_TOKEN` to `.env`.
+3. Start the app and upload via `/admin/media`.
+
+Media uploads are handled by `app/api/uploadthing/route.ts` and persisted into `MediaAsset` through `server/uploadthing/core.ts`.
+
+## Media Library (V1)
+
+- Admin route: `/admin/media`
+- Asset types:
+  - `IMAGE` (fully supported upload)
+  - `FILE` (generic docs/files upload)
+  - `VIDEO` (metadata-first entries for future provider workflows)
+- Core actions:
+  - upload
+  - filter/search/sort
+  - copy URL
+  - edit metadata
+  - delete
+  - pick existing image from content editor cover-image workflow
 
 ## Scripts
 

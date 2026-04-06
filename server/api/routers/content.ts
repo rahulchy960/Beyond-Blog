@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { MEDIA_TYPE, PUBLISH_STATUS, type MediaType } from "@/lib/content/enums";
+import { MEDIA_TYPE, PUBLISH_STATUS } from "@/lib/content/enums";
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
 import { buildHtmlFromRichText, normalizeRichTextDocument } from "@/lib/content/rich-text";
 import {
@@ -27,15 +27,6 @@ const adminContentInclude = {
     },
   },
 } as const;
-
-function detectImageMimeType(url: string) {
-  if (url.endsWith(".png")) return "image/png";
-  if (url.endsWith(".jpg") || url.endsWith(".jpeg")) return "image/jpeg";
-  if (url.endsWith(".webp")) return "image/webp";
-  if (url.endsWith(".gif")) return "image/gif";
-  if (url.endsWith(".svg")) return "image/svg+xml";
-  return "image/*";
-}
 
 async function assertSlugUnique(
   slug: string,
@@ -137,79 +128,35 @@ async function replaceContentTags(args: {
   });
 }
 
-async function updateCoverImageAsset(args: {
+async function assertValidCoverImageAsset(args: {
+  mediaAssetId?: string | null;
   db: {
     mediaAsset: {
-      create: (params: {
-        data: {
-          type: MediaType;
-          contentId: string;
-          uploadedByAdminId: string;
-          url: string;
-          mimeType: string;
-          sizeBytes: number;
-        };
-        select: { id: true };
-      }) => Promise<{ id: string }>;
-      update: (params: {
+      findUnique: (params: {
         where: { id: string };
-        data: {
-          type: MediaType;
-          url: string;
-          mimeType: string;
-          contentId: string;
-          uploadedByAdminId: string;
-        };
-        select: { id: true };
-      }) => Promise<{ id: string }>;
+        select: { id: true; type: true };
+      }) => Promise<{ id: string; type: string } | null>;
     };
   };
-  contentId: string;
-  adminUserId: string;
-  currentCoverImageAssetId?: string | null;
-  coverImageUrl?: string | null;
 }) {
-  const normalizedUrl = normalizeOptionalText(args.coverImageUrl);
-
-  if (!normalizedUrl) {
+  const mediaAssetId = normalizeOptionalText(args.mediaAssetId);
+  if (!mediaAssetId) {
     return null;
   }
 
-  if (args.currentCoverImageAssetId) {
-    const updated = await args.db.mediaAsset.update({
-      where: {
-        id: args.currentCoverImageAssetId,
-      },
-      data: {
-        type: MEDIA_TYPE.IMAGE,
-        url: normalizedUrl,
-        mimeType: detectImageMimeType(normalizedUrl.toLowerCase()),
-        contentId: args.contentId,
-        uploadedByAdminId: args.adminUserId,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    return updated.id;
-  }
-
-  const created = await args.db.mediaAsset.create({
-    data: {
-      type: MEDIA_TYPE.IMAGE,
-      contentId: args.contentId,
-      uploadedByAdminId: args.adminUserId,
-      url: normalizedUrl,
-      mimeType: detectImageMimeType(normalizedUrl.toLowerCase()),
-      sizeBytes: 0,
-    },
-    select: {
-      id: true,
-    },
+  const media = await args.db.mediaAsset.findUnique({
+    where: { id: mediaAssetId },
+    select: { id: true, type: true },
   });
 
-  return created.id;
+  if (!media || media.type !== MEDIA_TYPE.IMAGE) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Cover image must reference an existing IMAGE media asset.",
+    });
+  }
+
+  return media.id;
 }
 
 function toAdminContentPayload(
@@ -238,7 +185,16 @@ function toAdminContentPayload(
     createdAt: content.createdAt,
     categoryId: content.categoryId,
     categoryName: content.category?.name ?? null,
+    coverImageAssetId: content.coverImageAssetId,
     coverImageUrl: content.coverImage?.url ?? null,
+    coverImage: content.coverImage
+      ? {
+          id: content.coverImage.id,
+          url: content.coverImage.url,
+          altText: content.coverImage.altText,
+          type: content.coverImage.type,
+        }
+      : null,
     tagNames: content.tags.map((tagLink) => tagLink.tag.name),
   };
 }
@@ -260,6 +216,10 @@ export const contentRouter = createTRPCRouter({
     const bodyHtml = buildHtmlFromRichText(bodyJson);
     const publishStatus = input.publishStatus;
     const shouldPublish = publishStatus === PUBLISH_STATUS.PUBLISHED;
+    const coverImageAssetId = await assertValidCoverImageAsset({
+      db: ctx.db,
+      mediaAssetId: input.coverImageAssetId,
+    });
 
     const created = await ctx.db.$transaction(async (transaction) => {
       const content = await transaction.content.create({
@@ -277,6 +237,7 @@ export const contentRouter = createTRPCRouter({
           publishedAt: shouldPublish ? new Date() : null,
           authorId: ctx.adminUser.id,
           categoryId: normalizeOptionalText(input.categoryId),
+          coverImageAssetId,
         },
       });
 
@@ -285,19 +246,8 @@ export const contentRouter = createTRPCRouter({
         tagNames: input.tagNames,
         db: transaction,
       });
-
-      const coverImageAssetId = await updateCoverImageAsset({
-        db: transaction,
-        contentId: content.id,
-        adminUserId: ctx.adminUser.id,
-        coverImageUrl: input.coverImageUrl,
-      });
-
-      return transaction.content.update({
+      return transaction.content.findUniqueOrThrow({
         where: { id: content.id },
-        data: {
-          coverImageAssetId,
-        },
         include: adminContentInclude,
       });
     });
@@ -333,6 +283,10 @@ export const contentRouter = createTRPCRouter({
     const publishStatus = input.publishStatus;
     const publishedAt =
       publishStatus === PUBLISH_STATUS.PUBLISHED ? existing.publishedAt ?? new Date() : null;
+    const coverImageAssetId = await assertValidCoverImageAsset({
+      db: ctx.db,
+      mediaAssetId: input.coverImageAssetId,
+    });
 
     const updated = await ctx.db.$transaction(async (transaction) => {
       const content = await transaction.content.update({
@@ -350,6 +304,7 @@ export const contentRouter = createTRPCRouter({
           seoDescription: normalizeOptionalText(input.seoDescription),
           publishedAt,
           categoryId: normalizeOptionalText(input.categoryId),
+          coverImageAssetId,
         },
       });
 
@@ -358,20 +313,8 @@ export const contentRouter = createTRPCRouter({
         tagNames: input.tagNames,
         db: transaction,
       });
-
-      const coverImageAssetId = await updateCoverImageAsset({
-        db: transaction,
-        contentId: content.id,
-        adminUserId: ctx.adminUser.id,
-        currentCoverImageAssetId: existing.coverImageAssetId,
-        coverImageUrl: input.coverImageUrl,
-      });
-
-      return transaction.content.update({
+      return transaction.content.findUniqueOrThrow({
         where: { id: content.id },
-        data: {
-          coverImageAssetId,
-        },
         include: adminContentInclude,
       });
     });
