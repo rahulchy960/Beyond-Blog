@@ -18,7 +18,7 @@ export default function SignInPage() {
           </CardContent>
         </Card>
         <div className="flex justify-center lg:justify-end">
-          <SignIn path="/sign-in" routing="path" signUpUrl="/sign-up" />
+          <SignIn path="/sign-in" routing="path" signUpUrl="/sign-in" fallbackRedirectUrl="/admin" />
         </div>
       </SiteContainer>
     </div>

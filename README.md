@@ -59,6 +59,34 @@ To intentionally transfer ownership, set `ALLOW_ADMIN_REASSIGN=true` for the see
 - `publicProcedure` for open operations
 - `adminProcedure` for owner-only operations (`UNAUTHORIZED`/`FORBIDDEN` errors)
 
+## Content Management (V1)
+
+- Admin CRUD is implemented via `server/api/routers/content.ts`.
+- Supported types:
+  - `JOURNAL`
+  - `ARTICLE`
+  - `PROJECT`
+- Admin routes:
+  - `/admin/content`
+  - `/admin/journals`, `/admin/journals/new`, `/admin/journals/[id]/edit`
+  - `/admin/articles`, `/admin/articles/new`, `/admin/articles/[id]/edit`
+  - `/admin/projects`, `/admin/projects/new`, `/admin/projects/[id]/edit`
+- Public published routes:
+  - `/journals`, `/journals/[slug]`
+  - `/articles`, `/articles/[slug]`
+  - `/projects`, `/projects/[slug]`
+
+Rich text storage strategy:
+- Structured JSON is persisted in `Content.bodyJson`.
+- Derived HTML is generated server-side and stored in `Content.bodyHtml` for stable rendering.
+
+## Single-Admin Auth UX
+
+- App sign-up is disabled:
+  - `/sign-up` redirects to `/sign-in`
+  - sign-in UI points sign-up links back to sign-in
+- Beyond Blog assumes one existing admin account configured by env + seed.
+
 ## Clerk Settings
 
 - Enable the application with your desired sign-in method.

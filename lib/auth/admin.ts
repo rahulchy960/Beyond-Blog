@@ -1,9 +1,13 @@
 import "server-only";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { AdminRole, type AdminUser } from "@prisma/client";
+import type { AdminUser } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { db } from "@/server/db";
+import { OWNER_ADMIN_ROLE } from "@/lib/auth/constants";
+import {
+  findAdminByClerkUserId,
+  updateAdminProfileById,
+} from "@/lib/auth/admin-repository";
 
 const adminProfileSchema = z.object({
   email: z.string().email(),
@@ -34,15 +38,12 @@ async function syncAdminProfile(admin: AdminUser): Promise<AdminUser> {
     imageUrl: clerkUser.imageUrl ?? null,
   });
 
-  return db.adminUser.update({
-    where: { id: admin.id },
-    data: {
-      email: payload.email,
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      imageUrl: payload.imageUrl,
-      lastLoginAt: new Date(),
-    },
+  return updateAdminProfileById(admin.id, {
+    email: payload.email,
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    imageUrl: payload.imageUrl,
+    lastLoginAt: new Date(),
   });
 }
 
@@ -55,13 +56,9 @@ export async function getCurrentAdmin(options?: {
     return null;
   }
 
-  const admin = await db.adminUser.findUnique({
-    where: {
-      clerkUserId: userId,
-    },
-  });
+  const admin = await findAdminByClerkUserId(userId);
 
-  if (!admin || !admin.isActive || admin.role !== AdminRole.OWNER) {
+  if (!admin || !admin.isActive || admin.role !== OWNER_ADMIN_ROLE) {
     return null;
   }
 
@@ -74,15 +71,8 @@ export async function getCurrentAdmin(options?: {
 
 export async function isAdminUser(clerkUserId?: string | null): Promise<boolean> {
   if (clerkUserId) {
-    const count = await db.adminUser.count({
-      where: {
-        clerkUserId,
-        role: AdminRole.OWNER,
-        isActive: true,
-      },
-    });
-
-    return count === 1;
+    const admin = await findAdminByClerkUserId(clerkUserId);
+    return Boolean(admin && admin.isActive && admin.role === OWNER_ADMIN_ROLE);
   }
 
   const admin = await getCurrentAdmin();

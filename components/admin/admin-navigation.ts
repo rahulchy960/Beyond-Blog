@@ -5,6 +5,7 @@ import {
   FolderKanban,
   Gauge,
   ImageIcon,
+  Layers3Icon,
   MessageSquare,
   ScrollText,
   Settings2,
@@ -19,6 +20,7 @@ export type AdminNavItem = {
 
 export const adminNavigation: AdminNavItem[] = [
   { title: "Dashboard", href: "/admin", icon: Gauge },
+  { title: "All Content", href: "/admin/content", icon: Layers3Icon },
   { title: "Journals", href: "/admin/journals", icon: BookOpenText },
   { title: "Articles", href: "/admin/articles", icon: FileText },
   { title: "Projects", href: "/admin/projects", icon: FolderKanban },

@@ -20,7 +20,33 @@ const createPrismaClient = () => {
   });
 };
 
-export const db = globalForPrisma.prisma ?? createPrismaClient();
+const hasRequiredDelegates = (client: PrismaClient | undefined): client is PrismaClient => {
+  if (!client) {
+    return false;
+  }
+
+  const checks: Array<[delegateName: string, methodName: string]> = [
+    ["adminUser", "findUnique"],
+    ["content", "findMany"],
+    ["category", "findMany"],
+    ["tag", "findMany"],
+    ["contentTag", "createMany"],
+    ["mediaAsset", "create"],
+    ["comment", "count"],
+    ["quizAttempt", "count"],
+  ];
+
+  const target = client as unknown as Record<string, unknown>;
+  return checks.every(([delegateName, methodName]) => {
+    const delegate = target[delegateName] as Record<string, unknown> | undefined;
+    return typeof delegate?.[methodName] === "function";
+  });
+};
+
+// During schema changes in dev, a stale global Prisma client can survive HMR.
+// Validate required delegates before reusing the cached instance.
+const cachedPrisma = globalForPrisma.prisma;
+export const db = hasRequiredDelegates(cachedPrisma) ? cachedPrisma : createPrismaClient();
 
 if (env.NODE_ENV !== "production") {
   globalForPrisma.prisma = db;

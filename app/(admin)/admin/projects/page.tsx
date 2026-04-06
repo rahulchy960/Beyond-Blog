@@ -1,10 +1,6 @@
-import { AdminSectionPlaceholder } from "@/components/admin/admin-section-placeholder";
+import { CONTENT_TYPE } from "@/lib/content/enums";
+import { AdminContentListScreen } from "@/components/content/admin-content-list-screen";
 
 export default function AdminProjectsPage() {
-  return (
-    <AdminSectionPlaceholder
-      title="Projects"
-      description="Showcase research and project portfolios with supporting media."
-    />
-  );
+  return <AdminContentListScreen type={CONTENT_TYPE.PROJECT} />;
 }

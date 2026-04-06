@@ -1,10 +1,6 @@
-import { AdminSectionPlaceholder } from "@/components/admin/admin-section-placeholder";
+import { CONTENT_TYPE } from "@/lib/content/enums";
+import { AdminContentListScreen } from "@/components/content/admin-content-list-screen";
 
 export default function AdminArticlesPage() {
-  return (
-    <AdminSectionPlaceholder
-      title="Articles"
-      description="Publish editorial articles with SEO controls and rich content blocks."
-    />
-  );
+  return <AdminContentListScreen type={CONTENT_TYPE.ARTICLE} />;
 }

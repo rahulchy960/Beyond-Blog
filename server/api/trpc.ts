@@ -2,7 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { ZodError } from "zod";
 import superjson from "superjson";
-import { AdminRole } from "@prisma/client";
+import { OWNER_ADMIN_ROLE } from "@/lib/auth/constants";
+import { findAdminByClerkUserId } from "@/lib/auth/admin-repository";
 import { db } from "@/server/db";
 
 export const createTRPCContext = async () => {
@@ -40,11 +41,9 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
     });
   }
 
-  const adminUser = await ctx.db.adminUser.findUnique({
-    where: { clerkUserId: ctx.userId },
-  });
+  const adminUser = await findAdminByClerkUserId(ctx.userId);
 
-  if (!adminUser || !adminUser.isActive || adminUser.role !== AdminRole.OWNER) {
+  if (!adminUser || !adminUser.isActive || adminUser.role !== OWNER_ADMIN_ROLE) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Only the configured Beyond Blog admin can perform this action.",

@@ -1,8 +1,25 @@
 import "dotenv/config";
-import { AdminRole, PrismaClient } from "@prisma/client";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import { neonConfig } from "@neondatabase/serverless";
+import { PrismaClient } from "@prisma/client";
+import ws from "ws";
 import { z } from "zod";
 
-const prisma = new PrismaClient();
+neonConfig.webSocketConstructor = ws;
+
+const databaseUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error("Missing DIRECT_URL or DATABASE_URL for Prisma seed.");
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaNeon({
+    connectionString: databaseUrl,
+  }),
+});
+
+const OWNER_ADMIN_ROLE = "OWNER";
 
 const seedEnvSchema = z.object({
   SINGLE_ADMIN_CLERK_USER_ID: z.string().min(1),
@@ -15,7 +32,7 @@ const seedEnvSchema = z.object({
 async function main() {
   const env = seedEnvSchema.parse(process.env);
   const existingOwner = await prisma.adminUser.findUnique({
-    where: { role: AdminRole.OWNER },
+    where: { role: OWNER_ADMIN_ROLE },
   });
 
   if (
@@ -29,7 +46,7 @@ async function main() {
   }
 
   await prisma.adminUser.upsert({
-    where: { role: AdminRole.OWNER },
+    where: { role: OWNER_ADMIN_ROLE },
     update: {
       clerkUserId: env.SINGLE_ADMIN_CLERK_USER_ID,
       email: env.SINGLE_ADMIN_EMAIL,
@@ -38,7 +55,7 @@ async function main() {
       isActive: true,
     },
     create: {
-      role: AdminRole.OWNER,
+      role: OWNER_ADMIN_ROLE,
       clerkUserId: env.SINGLE_ADMIN_CLERK_USER_ID,
       email: env.SINGLE_ADMIN_EMAIL,
       firstName: env.SINGLE_ADMIN_FIRST_NAME ?? null,

@@ -18,6 +18,15 @@ export async function PublicHeader() {
             <Link className={buttonVariants({ variant: "ghost", size: "sm" })} href="/">
               Home
             </Link>
+            <Link className={buttonVariants({ variant: "ghost", size: "sm" })} href="/journals">
+              Journals
+            </Link>
+            <Link className={buttonVariants({ variant: "ghost", size: "sm" })} href="/articles">
+              Articles
+            </Link>
+            <Link className={buttonVariants({ variant: "ghost", size: "sm" })} href="/projects">
+              Projects
+            </Link>
           </nav>
         </div>
 

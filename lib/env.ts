@@ -24,7 +24,7 @@ const envSchema = z.object({
       "Replace CLERK_SECRET_KEY with a real key",
     ),
   NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string().default("/sign-in"),
-  NEXT_PUBLIC_CLERK_SIGN_UP_URL: z.string().default("/sign-up"),
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: z.string().default("/sign-in"),
   CLERK_WEBHOOK_SECRET: z.string().optional(),
   DATABASE_URL: z
     .string()
