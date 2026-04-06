@@ -11,8 +11,8 @@ export function AdminStatsGrid() {
 
   if (dashboardStatsQuery.isPending) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, index) => (
           <Card key={`admin-stats-loading-${index}`}>
             <CardHeader>
               <Skeleton className="h-4 w-24" />
@@ -41,7 +41,7 @@ export function AdminStatsGrid() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
       {dashboardStatsQuery.data.map((stat) => (
         <Card key={stat.title}>
           <CardHeader>

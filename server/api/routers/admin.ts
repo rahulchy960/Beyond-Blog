@@ -2,23 +2,24 @@ import { createTRPCRouter, adminProcedure } from "@/server/api/trpc";
 
 export const adminRouter = createTRPCRouter({
   dashboardStats: adminProcedure.query(async ({ ctx }) => {
-    const [totalContent, publishedContent, totalComments, publishedQuizzes] =
+    const [totalContent, publishedContent, draftContent, totalComments, totalQuizAttempts] =
       await Promise.all([
         ctx.db.content.count(),
         ctx.db.content.count({
           where: { publishStatus: "PUBLISHED" },
         }),
-        ctx.db.comment.count(),
-        ctx.db.quiz.count({
-          where: { status: "PUBLISHED" },
+        ctx.db.content.count({
+          where: { publishStatus: "DRAFT" },
         }),
+        ctx.db.comment.count(),
+        ctx.db.quizAttempt.count(),
       ]);
 
     return [
       {
-        title: "Content Entries",
+        title: "Total Content",
         value: totalContent.toLocaleString(),
-        description: "Journals, articles, and projects",
+        description: "Journals, articles, and projects combined",
       },
       {
         title: "Published Content",
@@ -26,14 +27,19 @@ export const adminRouter = createTRPCRouter({
         description: "Visible to public visitors",
       },
       {
-        title: "Public Comments",
-        value: totalComments.toLocaleString(),
-        description: "Guest discussion activity",
+        title: "Draft Content",
+        value: draftContent.toLocaleString(),
+        description: "Pending editorial review",
       },
       {
-        title: "Published Quizzes",
-        value: publishedQuizzes.toLocaleString(),
-        description: "Public quiz availability",
+        title: "Total Comments",
+        value: totalComments.toLocaleString(),
+        description: "Guest comments across published content",
+      },
+      {
+        title: "Total Quiz Attempts",
+        value: totalQuizAttempts.toLocaleString(),
+        description: "Guest quiz submissions",
       },
     ];
   }),

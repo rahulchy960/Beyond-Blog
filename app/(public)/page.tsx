@@ -17,25 +17,24 @@ export default function HomePage() {
       <SiteContainer className="space-y-10">
         <section className="space-y-6">
           <Badge variant="outline" className="uppercase tracking-wide">
-            Production Foundation
+            Beyond Blog
           </Badge>
           <h1 className="max-w-3xl font-heading text-4xl font-semibold tracking-tight md:text-5xl">
-            Academic publishing infrastructure for journals, projects, media, and
-            future assessments.
+            Journals, articles, projects, media, and public quizzes in one editorial platform.
           </h1>
           <p className="max-w-2xl text-lg text-muted-foreground">
-            This platform is now initialized with modern auth, typed API boundaries,
-            Neon/PostgreSQL persistence, and scalable App Router architecture.
+            Beyond Blog is built for public readership with a secure single-admin
+            publishing workflow.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link href="/sign-up" className={buttonVariants({ size: "lg" })}>
-              Create account
-            </Link>
             <Link
               href="/admin"
               className={buttonVariants({ variant: "outline", size: "lg" })}
             >
-              Open admin area
+              Open admin console
+            </Link>
+            <Link href="/sign-in" className={buttonVariants({ size: "lg" })}>
+              Admin sign in
             </Link>
           </div>
         </section>
@@ -52,7 +51,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Router, providers, and database layers are ready for journal modules.
+                Public browsing is open, while editorial management stays admin-only.
               </p>
             </CardContent>
           </Card>
@@ -66,7 +65,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Admin route scaffolding supports granular role-based editing workflows.
+                Project-focused storytelling with scalable metadata and media support.
               </p>
             </CardContent>
           </Card>
@@ -80,7 +79,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                tRPC + Zod + React Query are pre-configured for scalable data access.
+                Guest attempts, answer tracking, and moderation-ready infrastructure.
               </p>
             </CardContent>
           </Card>

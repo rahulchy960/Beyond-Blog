@@ -46,6 +46,30 @@ npm run db:seed
 
 To intentionally transfer ownership, set `ALLOW_ADMIN_REASSIGN=true` for the seed run.
 
+## Admin Authorization Flow
+
+1. `proxy.ts` protects `/admin` paths at the edge and redirects unauthenticated visitors to Clerk sign-in.
+2. `lib/auth/admin.ts` enforces server-side checks:
+- `getCurrentAdmin()`
+- `isAdminUser()`
+- `requireAdmin()`
+3. `app/(admin)/admin/layout.tsx` calls `requireAdmin()` on every admin request.
+4. Signed-in users not mapped to the single `AdminUser` owner are redirected to `/unauthorized`.
+5. `server/api/trpc.ts` exposes:
+- `publicProcedure` for open operations
+- `adminProcedure` for owner-only operations (`UNAUTHORIZED`/`FORBIDDEN` errors)
+
+## Clerk Settings
+
+- Enable the application with your desired sign-in method.
+- Set:
+  - `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
+  - `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`
+- Ensure allowed redirect URLs include:
+  - `http://localhost:3000/sign-in`
+  - `http://localhost:3000/admin`
+  - `http://localhost:3000/unauthorized`
+
 ## Scripts
 
 - `npm run dev`
