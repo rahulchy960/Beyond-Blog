@@ -21,7 +21,7 @@ type MediaPreviewProps = {
 export function MediaPreview({ media, compact = false }: MediaPreviewProps) {
   if (!media) {
     return (
-      <div className="surface-panel flex items-center gap-3 p-3">
+      <div className="surface-inset flex items-center gap-3 p-3">
         <span className="inline-flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
           <FileIcon className="size-4" />
         </span>
@@ -34,7 +34,7 @@ export function MediaPreview({ media, compact = false }: MediaPreviewProps) {
   const imageUrl = media.thumbnailUrl ?? media.url;
 
   return (
-    <div className="surface-panel flex items-center gap-3 p-3">
+    <div className="surface-inset flex items-center gap-3 p-3">
       <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted">
         {media.type === MEDIA_TYPE.IMAGE ? (
           <Image

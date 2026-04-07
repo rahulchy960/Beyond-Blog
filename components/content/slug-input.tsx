@@ -30,7 +30,7 @@ export function SlugInput({ value, onChange, onRegenerate }: SlugInputProps) {
           Regenerate
         </button>
       </div>
-      <p className="text-xs text-muted-foreground">Use lowercase letters, numbers, and hyphens.</p>
+      <p className="text-xs leading-6 text-muted-foreground">Use lowercase letters, numbers, and hyphens.</p>
     </div>
   );
 }

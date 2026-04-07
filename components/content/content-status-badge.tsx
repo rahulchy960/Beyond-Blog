@@ -8,12 +8,20 @@ type ContentStatusBadgeProps = {
 
 export function ContentStatusBadge({ status }: ContentStatusBadgeProps) {
   if (status === PUBLISH_STATUS.PUBLISHED) {
-    return <Badge className="uppercase">{publishStatusLabels[status]}</Badge>;
+    return <Badge className="tracking-[0.08em] uppercase">{publishStatusLabels[status]}</Badge>;
   }
 
   if (status === PUBLISH_STATUS.ARCHIVED) {
-    return <Badge variant="secondary" className="uppercase">{publishStatusLabels[status]}</Badge>;
+    return (
+      <Badge variant="secondary" className="tracking-[0.08em] uppercase">
+        {publishStatusLabels[status]}
+      </Badge>
+    );
   }
 
-  return <Badge variant="outline" className="uppercase">{publishStatusLabels[status]}</Badge>;
+  return (
+    <Badge variant="outline" className="tracking-[0.08em] uppercase">
+      {publishStatusLabels[status]}
+    </Badge>
+  );
 }

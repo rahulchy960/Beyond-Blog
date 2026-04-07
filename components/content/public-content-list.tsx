@@ -1,9 +1,11 @@
 import { FileTextIcon } from "lucide-react";
+import Link from "next/link";
 import { type ContentType } from "@/lib/content/enums";
 import { ContentCard } from "@/components/content/content-card";
 import { contentTypeMeta } from "@/lib/content/constants";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeader } from "@/components/ui/section-header";
+import { buttonVariants } from "@/lib/ui/button-variants";
 
 type PublicContentListItem = {
   id: string;
@@ -22,9 +24,11 @@ type PublicContentListProps = {
 
 export function PublicContentList({ type, items }: PublicContentListProps) {
   const meta = contentTypeMeta[type];
+  const lead = items[0];
+  const rest = items.slice(1);
 
   return (
-    <section className="space-y-8">
+    <section className="space-y-10">
       <SectionHeader
         eyebrow="Beyond Blog"
         title={meta.plural}
@@ -38,11 +42,26 @@ export function PublicContentList({ type, items }: PublicContentListProps) {
           description="The editorial team has not published entries in this section yet. Check back soon."
         />
       ) : (
-        <div className="grid gap-5">
-          {items.map((item) => (
-            <ContentCard key={item.id} type={type} item={item} />
-          ))}
-        </div>
+        <>
+          {lead ? (
+            <article className="surface-panel-strong space-y-4 px-6 py-6">
+              <p className="meta-kicker">Lead {meta.singular}</p>
+              <h3 className="text-3xl font-semibold tracking-tight md:text-4xl">{lead.title}</h3>
+              {lead.summary ? <p className="max-w-3xl text-sm text-muted-foreground">{lead.summary}</p> : null}
+              <div className="pt-1">
+                <Link href={`${meta.publicBasePath}/${lead.slug}`} className={buttonVariants({ size: "sm" })}>
+                  Read {meta.singular.toLowerCase()}
+                </Link>
+              </div>
+            </article>
+          ) : null}
+
+          <div className="grid gap-4">
+            {(rest.length > 0 ? rest : lead ? [lead] : []).map((item) => (
+              <ContentCard key={item.id} type={type} item={item} />
+            ))}
+          </div>
+        </>
       )}
     </section>
   );

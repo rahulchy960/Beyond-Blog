@@ -5,7 +5,7 @@ type RichTextRendererProps = {
 export function RichTextRenderer({ html }: RichTextRendererProps) {
   return (
     <div
-      className="editorial-prose"
+      className="editorial-prose mx-auto max-w-3xl"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

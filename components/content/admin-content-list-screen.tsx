@@ -15,7 +15,7 @@ export function AdminContentListScreen({ type }: AdminContentListScreenProps) {
   const meta = contentTypeMeta[type];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageHeader
         title={meta.plural}
         description={`Manage ${meta.plural.toLowerCase()} with draft, publish, featured, and archive workflows.`}

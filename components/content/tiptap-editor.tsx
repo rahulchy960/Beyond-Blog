@@ -37,7 +37,7 @@ function ToolbarButton({ onClick, active, icon, label }: ToolbarButtonProps) {
       onClick={onClick}
       className={cn(
         buttonVariants({ variant: active ? "secondary" : "ghost", size: "sm" }),
-        "h-8 w-8 p-0",
+        "h-8 w-8 rounded-md p-0",
       )}
       title={label}
       aria-label={label}
@@ -62,7 +62,7 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
     editorProps: {
       attributes: {
         class:
-          "min-h-[360px] w-full rounded-xl border border-border/70 bg-background px-4 py-3 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "min-h-[380px] w-full rounded-xl border border-border/70 bg-reading-surface/80 px-4 py-3 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring",
       },
     },
     onUpdate: ({ editor: tiptapEditor }) => {
@@ -88,8 +88,8 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
   }
 
   return (
-    <div className="surface-panel space-y-3 p-3">
-      <div className="flex flex-wrap gap-1 rounded-lg border border-border/70 bg-muted/55 p-2">
+    <div className="surface-editor space-y-3 p-3">
+      <div className="toolbar-row">
         <ToolbarButton
           label="Paragraph"
           icon={<PilcrowIcon className="size-4" />}
@@ -114,7 +114,7 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
           active={editor.isActive("heading", { level: 3 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
         />
-        <span className="mx-1 h-6 w-px bg-border" />
+        <span className="mx-0.5 h-6 w-px bg-border" />
         <ToolbarButton
           label="Bold"
           icon={<BoldIcon className="size-4" />}
@@ -127,7 +127,7 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
           active={editor.isActive("italic")}
           onClick={() => editor.chain().focus().toggleItalic().run()}
         />
-        <span className="mx-1 h-6 w-px bg-border" />
+        <span className="mx-0.5 h-6 w-px bg-border" />
         <ToolbarButton
           label="Bulleted list"
           icon={<ListIcon className="size-4" />}
@@ -152,7 +152,7 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
           active={editor.isActive("codeBlock")}
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
         />
-        <span className="mx-1 h-6 w-px bg-border" />
+        <span className="mx-0.5 h-6 w-px bg-border" />
         <ToolbarButton
           label="Horizontal rule"
           icon={<MinusIcon className="size-4" />}

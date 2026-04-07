@@ -21,16 +21,20 @@ export function PageHeader({
   const crumb = currentLabel ?? title;
 
   return (
-    <header className={cn("space-y-4", className)}>
-      <div className="flex items-center gap-1 text-xs tracking-wide text-muted-foreground uppercase">
+    <header className={cn("space-y-5", className)}>
+      <div className="flex items-center gap-1 text-[0.68rem] tracking-[0.15em] text-muted-foreground uppercase">
         <span>{parentLabel}</span>
         <ChevronRightIcon className="size-3.5" />
         <span>{crumb}</span>
       </div>
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold md:text-3xl">{title}</h1>
-          {description ? <p className="max-w-3xl text-sm text-muted-foreground md:text-base">{description}</p> : null}
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-2.5">
+          <h1 className="text-3xl leading-tight font-semibold tracking-tight md:text-4xl">{title}</h1>
+          {description ? (
+            <p className="max-w-3xl text-sm leading-7 text-muted-foreground md:text-[0.98rem]">
+              {description}
+            </p>
+          ) : null}
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>

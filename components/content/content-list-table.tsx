@@ -41,22 +41,26 @@ export function ContentListTable({ type }: ContentListTableProps) {
   );
 
   const rows = useMemo(() => listQuery.data?.items ?? [], [listQuery.data?.items]);
+  const publishedCount = useMemo(
+    () => rows.filter((row) => row.publishStatus === "PUBLISHED").length,
+    [rows],
+  );
 
   return (
-    <div className="surface-panel space-y-4 p-4 md:p-5">
-      <div className="grid gap-2 md:grid-cols-[1fr_180px_180px]">
-        <div className="relative">
-          <SearchIcon className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+    <div className="space-y-4">
+      <div className="toolbar-row">
+        <div className="relative min-w-0 flex-1">
+          <SearchIcon className="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={`Search ${contentMeta.plural.toLowerCase()}`}
-            className="pl-9"
+            placeholder={`Search ${contentMeta.plural.toLowerCase()} by title, slug, or summary`}
+            className="pl-10"
           />
         </div>
 
         <Select value={status} onValueChange={(value) => setStatus((value ?? "all") as "all" | PublishStatus)}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-[11.5rem]">
             <SelectValue placeholder="Filter status" />
           </SelectTrigger>
           <SelectContent>
@@ -73,7 +77,7 @@ export function ContentListTable({ type }: ContentListTableProps) {
             setFeatured((value ?? "all") as "all" | "featured" | "not_featured")
           }
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-[11.5rem]">
             <SelectValue placeholder="Filter featured" />
           </SelectTrigger>
           <SelectContent>
@@ -82,6 +86,11 @@ export function ContentListTable({ type }: ContentListTableProps) {
             <SelectItem value="not_featured">Not featured</SelectItem>
           </SelectContent>
         </Select>
+
+        <div className="ml-auto hidden items-center gap-4 text-xs text-muted-foreground md:flex">
+          <p>Total: {rows.length}</p>
+          <p>Published: {publishedCount}</p>
+        </div>
       </div>
 
       {listQuery.isPending ? (
@@ -97,26 +106,29 @@ export function ContentListTable({ type }: ContentListTableProps) {
           description="Try changing your filters or create a new entry to start publishing."
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border/80 bg-card/65">
+        <div className="data-table-shell">
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted/55">
+              <TableRow className="bg-muted/45">
                 <TableHead className="px-3">Title</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Updated</TableHead>
                 <TableHead>Published</TableHead>
                 <TableHead>Featured</TableHead>
-                <TableHead className="w-[50px]" />
+                <TableHead className="w-[54px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="px-3">
-                    <div className="max-w-[520px] space-y-1.5">
+                    <div className="max-w-[580px] space-y-1.5">
                       <Link
                         href={`${contentMeta.adminBasePath}/${row.id}/edit`}
-                        className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0 text-left")}
+                        className={cn(
+                          buttonVariants({ variant: "link", size: "sm" }),
+                          "h-auto p-0 text-left text-[0.95rem] font-medium text-foreground",
+                        )}
                       >
                         {row.title}
                       </Link>
@@ -126,9 +138,15 @@ export function ContentListTable({ type }: ContentListTableProps) {
                   <TableCell>
                     <ContentStatusBadge status={row.publishStatus} />
                   </TableCell>
-                  <TableCell>{format(new Date(row.updatedAt), "MMM d, yyyy")}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {format(new Date(row.updatedAt), "MMM d, yyyy")}
+                  </TableCell>
                   <TableCell>
-                    {row.publishedAt ? format(new Date(row.publishedAt), "MMM d, yyyy") : "Not published"}
+                    {row.publishedAt ? (
+                      format(new Date(row.publishedAt), "MMM d, yyyy")
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Not published</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {row.isFeatured ? (

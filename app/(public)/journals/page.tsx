@@ -12,7 +12,7 @@ export default async function JournalsPage() {
   });
 
   return (
-    <div className="py-12 md:py-16">
+    <div className="py-10 md:py-14">
       <SiteContainer>
         <AnimatedPageWrapper>
           <PublicContentList type={CONTENT_TYPE.JOURNAL} items={items} />

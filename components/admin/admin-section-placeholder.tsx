@@ -11,7 +11,7 @@ type AdminSectionPlaceholderProps = {
 
 export function AdminSectionPlaceholder({ title, description }: AdminSectionPlaceholderProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageHeader title={title} description={description} />
       <EmptyState
         icon={WrenchIcon}

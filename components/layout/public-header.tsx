@@ -1,8 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { MenuIcon } from "lucide-react";
-import { platformName } from "@/lib/constants";
+import { findOwnerAdmin } from "@/lib/auth/admin-repository";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { SiteContainer } from "@/components/layout/site-container";
@@ -22,33 +23,64 @@ const PUBLIC_NAV = [
   { label: "Projects", href: "/projects" },
 ];
 
+function getInitials(label: string) {
+  const parts = label
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (parts.length === 0) {
+    return "A";
+  }
+
+  return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "A";
+}
+
 export async function PublicHeader() {
   const { userId } = await auth();
+  const ownerAdmin = await findOwnerAdmin();
+  const adminLabel = ownerAdmin
+    ? `${ownerAdmin.firstName ?? ""} ${ownerAdmin.lastName ?? ""}`.trim() || ownerAdmin.email
+    : "Beyond Blog Admin";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl">
-      <SiteContainer className="flex h-16 items-center justify-between gap-4">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="text-base font-semibold tracking-tight">
-            {platformName}
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/92 backdrop-blur-xl">
+      <SiteContainer className="flex h-[4.45rem] items-center gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <Avatar size="default">
+            {ownerAdmin?.imageUrl ? <AvatarImage src={ownerAdmin.imageUrl} alt={`${adminLabel} avatar`} /> : null}
+            <AvatarFallback>{getInitials(adminLabel)}</AvatarFallback>
+          </Avatar>
+
+          <Link href="/" className="min-w-0">
+            <p className="truncate text-lg font-semibold tracking-tight">{adminLabel}</p>
           </Link>
-          <nav className="hidden items-center gap-1 text-sm md:flex">
+
+          <nav className="hidden items-center gap-1 lg:flex">
             {PUBLIC_NAV.map((item) => (
-              <Link key={item.href} className={buttonVariants({ variant: "ghost", size: "sm" })} href={item.href}>
+              <Link
+                key={item.href}
+                className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "rounded-md text-[0.83rem]")}
+                href={item.href}
+              >
                 {item.label}
               </Link>
             ))}
           </nav>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center justify-end gap-2">
           <ThemeToggle />
           {userId ? (
             <Link className={buttonVariants({ variant: "outline", size: "sm" })} href="/admin">
               Admin Console
             </Link>
           ) : (
-            <Link className={cn(buttonVariants({ variant: "outline", size: "sm" }), "hidden sm:inline-flex")} href="/sign-in">
+            <Link
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "hidden sm:inline-flex")}
+              href="/sign-in"
+            >
               Admin Sign-In
             </Link>
           )}
@@ -65,8 +97,13 @@ export async function PublicHeader() {
                 <SheetDescription>Navigate public sections and admin sign-in.</SheetDescription>
               </SheetHeader>
               <div className="mt-8 grid gap-2">
+                <p className="px-2 text-xs font-medium text-muted-foreground">Admin: {adminLabel}</p>
                 {PUBLIC_NAV.map((item) => (
-                  <Link key={item.href} href={item.href} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={buttonVariants({ variant: "ghost", size: "sm" })}
+                  >
                     {item.label}
                   </Link>
                 ))}

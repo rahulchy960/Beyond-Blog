@@ -1,7 +1,26 @@
 import type { Metadata } from "next";
+import { Lora, Plus_Jakarta_Sans, Roboto_Mono } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
+
+const sans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--app-font-sans",
+  display: "swap",
+});
+
+const heading = Lora({
+  subsets: ["latin"],
+  variable: "--app-font-heading",
+  display: "swap",
+});
+
+const mono = Roboto_Mono({
+  subsets: ["latin"],
+  variable: "--app-font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -18,7 +37,11 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="h-full antialiased">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${sans.variable} ${heading.variable} ${mono.variable} h-full antialiased`}
+    >
       <body className="min-h-full bg-background text-foreground selection:bg-primary/20 selection:text-foreground">
         <AppProviders>
           {children}

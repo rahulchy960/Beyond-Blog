@@ -12,7 +12,7 @@ export default async function ProjectsPage() {
   });
 
   return (
-    <div className="py-12 md:py-16">
+    <div className="py-10 md:py-14">
       <SiteContainer>
         <AnimatedPageWrapper>
           <PublicContentList type={CONTENT_TYPE.PROJECT} items={items} />

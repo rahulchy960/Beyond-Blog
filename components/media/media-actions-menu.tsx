@@ -102,7 +102,9 @@ export function MediaActionsMenu({ media, onSelect }: MediaActionsMenuProps) {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}>
+        <DropdownMenuTrigger
+          className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "rounded-md")}
+        >
           <EllipsisVerticalIcon className="size-4" />
           <span className="sr-only">Open media actions</span>
         </DropdownMenuTrigger>

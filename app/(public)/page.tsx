@@ -47,19 +47,19 @@ export default async function HomePage() {
   const highlights = latest.slice(1, 7);
 
   return (
-    <div className="py-12 md:py-16">
-      <SiteContainer className="space-y-14 md:space-y-16">
+    <div className="py-10 md:py-14">
+      <SiteContainer className="space-y-16 md:space-y-20">
         <AnimatedPageWrapper>
-          <section className="surface-panel-strong relative overflow-hidden p-7 md:p-10">
-            <div className="relative z-10 grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
-              <div className="space-y-5">
-                <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+          <section className="surface-panel-strong relative overflow-hidden px-6 py-8 md:px-9 md:py-10">
+            <div className="grid gap-10 lg:grid-cols-[1.35fr_0.65fr]">
+              <div className="space-y-6">
+                <p className="meta-kicker">
                   Beyond Blog
                 </p>
-                <h1 className="max-w-4xl text-4xl leading-tight font-semibold md:text-6xl">
-                  A modern editorial platform for journals, projects, and scholarly writing.
+                <h1 className="max-w-4xl text-4xl leading-tight font-semibold tracking-tight md:text-6xl">
+                  Publishing journals, articles, and project notes with long-term editorial clarity.
                 </h1>
-                <p className="max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
+                <p className="max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
                   Public readers can browse every published piece openly. A single protected admin console powers
                   drafting, publishing, and long-term content stewardship.
                 </p>
@@ -74,23 +74,28 @@ export default async function HomePage() {
                 </div>
               </div>
 
-              <div className="surface-panel space-y-3 p-5">
-                <p className="text-xs tracking-[0.14em] text-muted-foreground uppercase">What is live now</p>
-                <div className="grid gap-2 text-sm">
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2">
-                    <span>Journals</span>
-                    <strong>{journals.length}</strong>
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2">
-                    <span>Articles</span>
-                    <strong>{articles.length}</strong>
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2">
-                    <span>Projects</span>
-                    <strong>{projects.length}</strong>
+              <aside className="space-y-4">
+                <div className="surface-inset px-4 py-4">
+                  <p className="meta-kicker">Publication Inventory</p>
+                  <div className="mt-3 grid gap-1.5 text-sm">
+                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2">
+                      <span>Journals</span>
+                      <strong>{journals.length}</strong>
+                    </div>
+                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2">
+                      <span>Articles</span>
+                      <strong>{articles.length}</strong>
+                    </div>
+                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2">
+                      <span>Projects</span>
+                      <strong>{projects.length}</strong>
+                    </div>
                   </div>
                 </div>
-              </div>
+                <p className="text-sm leading-7 text-muted-foreground">
+                  Structured for one editor and open audiences: no login gates for readers, no multi-admin drift.
+                </p>
+              </aside>
             </div>
           </section>
         </AnimatedPageWrapper>
@@ -106,11 +111,12 @@ export default async function HomePage() {
           </AnimatedPageWrapper>
         ) : null}
 
-        <AnimatedPageWrapper delay={0.08} className="space-y-5">
+        <AnimatedPageWrapper delay={0.08} className="space-y-6">
           <SectionHeader
             eyebrow="Discover"
             title="Recent Publications"
             description="Fresh journals, articles, and projects from the Beyond Blog editorial stream."
+            className="border-b border-border/70 pb-4"
             actions={
               <Link
                 href="/journals"
@@ -126,7 +132,7 @@ export default async function HomePage() {
               description="Publish your first journal, article, or project from the admin workspace to populate the homepage."
             />
           ) : (
-            <div className="grid gap-5 lg:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-2">
               {highlights.map((item) => (
                 <ContentCard key={item.entry.id} type={item.type} item={item.entry} />
               ))}

@@ -69,7 +69,7 @@ export function MediaLibraryAdminScreen() {
   const items = useMemo(() => mediaQuery.data?.items ?? [], [mediaQuery.data?.items]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageHeader
         title="Media Library"
         description="Upload, organize, and reuse images, files, and future-ready video assets."

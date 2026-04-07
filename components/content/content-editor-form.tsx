@@ -248,7 +248,7 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageHeader
         title={editorTitle}
         description={`Draft, publish, and maintain ${contentMeta.plural.toLowerCase()} in a consistent editorial workflow.`}
@@ -269,7 +269,7 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
 
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="grid gap-6 lg:grid-cols-[1fr_330px]"
+        className="grid gap-6 lg:grid-cols-[1fr_22rem]"
       >
         <AnimatedPageWrapper className="space-y-6">
           <Card className="surface-panel">
@@ -313,14 +313,19 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
                 <Label htmlFor="summary">Summary</Label>
                 <Textarea
                   id="summary"
-                  rows={4}
+                  rows={5}
                   placeholder="Short summary shown in listings and previews."
                   {...form.register("summary")}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Content Body</Label>
+                <div className="space-y-1">
+                  <Label>Content Body</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Use headings and structure intentionally. This body is used for both public reading and SEO snippets.
+                  </p>
+                </div>
                 <TiptapEditor
                   value={bodyJsonValue as EditorFormValues["bodyJson"]}
                   onChange={(value) =>
@@ -411,6 +416,9 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
                   <SendHorizonalIcon className="size-4" />
                   Publish
                 </Button>
+                <p className="text-xs leading-6 text-muted-foreground">
+                  Draft saves keep content private. Publish makes this entry visible on public routes.
+                </p>
               </div>
             </CardContent>
           </Card>

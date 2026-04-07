@@ -32,7 +32,11 @@ const THEME_ITEMS = [
 
 const subscribe = () => () => undefined;
 
-export function ThemeToggle() {
+type ThemeToggleProps = {
+  title?: string;
+};
+
+export function ThemeToggle({ title = "Toggle theme" }: ThemeToggleProps) {
   const { setTheme, theme } = useTheme();
   const isClient = useSyncExternalStore(subscribe, () => true, () => false);
   const activeTheme = isClient ? theme : "system";
@@ -43,7 +47,8 @@ export function ThemeToggle() {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(buttonVariants({ variant: "outline", size: "icon" }), "focus-ring")}
-        aria-label="Toggle theme"
+        aria-label={title}
+        title={title}
       >
           <ActiveIcon className="size-4" />
       </DropdownMenuTrigger>

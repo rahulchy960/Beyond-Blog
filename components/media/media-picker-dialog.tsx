@@ -64,12 +64,12 @@ export function MediaPickerDialog({ open, onOpenChange, onSelect }: MediaPickerD
         <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
           <div className="space-y-3">
             <div className="relative">
-              <SearchIcon className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+              <SearchIcon className="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search images by title, filename, or alt text"
-                className="pl-9"
+                className="pl-10"
               />
             </div>
 

@@ -16,24 +16,32 @@ import {
 
 type AdminShellProps = {
   adminLabel: string;
+  adminImageUrl?: string | null;
   children: React.ReactNode;
 };
 
-export function AdminShell({ adminLabel, children }: AdminShellProps) {
+export function AdminShell({ adminLabel, adminImageUrl, children }: AdminShellProps) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pageTitle = getAdminPageTitle(pathname);
 
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-72 lg:block">
+      <aside className="hidden w-[18.5rem] border-r border-sidebar-border/80 lg:block">
         <DashboardSidebar />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <DashboardHeader title={pageTitle} adminLabel={adminLabel} onOpenSidebar={() => setMobileNavOpen(true)} />
-        <main className="flex-1 p-3 md:p-5">
-          <AnimatedPageWrapper className="mx-auto w-full max-w-7xl">{children}</AnimatedPageWrapper>
+        <DashboardHeader
+          title={pageTitle}
+          adminLabel={adminLabel}
+          adminImageUrl={adminImageUrl}
+          onOpenSidebar={() => setMobileNavOpen(true)}
+        />
+        <main className="flex-1 px-3 pb-4 md:px-5 md:pb-6">
+          <AnimatedPageWrapper className="mx-auto w-full max-w-[77rem] pt-6 md:pt-7">
+            {children}
+          </AnimatedPageWrapper>
         </main>
       </div>
 

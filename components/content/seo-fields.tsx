@@ -21,10 +21,10 @@ export function SeoFields({
     <section className="space-y-4">
       {showHeader ? (
         <div>
-        <h3 className="font-heading text-lg font-semibold">SEO</h3>
-        <p className="text-sm text-muted-foreground">
-          Optional metadata used for previews and search indexing.
-        </p>
+          <h3 className="font-heading text-lg font-semibold">SEO</h3>
+          <p className="text-sm text-muted-foreground">
+            Optional metadata used for previews and search indexing.
+          </p>
         </div>
       ) : null}
 
@@ -49,6 +49,7 @@ export function SeoFields({
           placeholder="Short SEO description"
           rows={4}
         />
+        <p className="text-xs text-muted-foreground">{seoDescription.length}/300</p>
       </div>
     </section>
   );

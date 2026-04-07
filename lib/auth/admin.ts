@@ -38,11 +38,15 @@ async function syncAdminProfile(admin: AdminUser): Promise<AdminUser> {
     imageUrl: clerkUser.imageUrl ?? null,
   });
 
+  // Preserve a manually configured dashboard avatar when present.
+  // Fall back to Clerk image only if no custom image has been set yet.
+  const persistedImageUrl = admin.imageUrl ?? payload.imageUrl;
+
   return updateAdminProfileById(admin.id, {
     email: payload.email,
     firstName: payload.firstName,
     lastName: payload.lastName,
-    imageUrl: payload.imageUrl,
+    imageUrl: persistedImageUrl,
     lastLoginAt: new Date(),
   });
 }

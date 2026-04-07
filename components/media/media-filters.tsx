@@ -14,9 +14,9 @@ type MediaFiltersProps = {
 
 export function MediaFilters({ type, query, onTypeChange, onQueryChange }: MediaFiltersProps) {
   return (
-    <div className="grid gap-2 md:grid-cols-[220px_1fr]">
+    <div className="toolbar-row">
       <Select value={type} onValueChange={(value) => onTypeChange((value ?? "all") as "all" | MediaType)}>
-        <SelectTrigger>
+        <SelectTrigger className="w-[12rem]">
           <SelectValue placeholder="Media type" />
         </SelectTrigger>
         <SelectContent>
@@ -27,13 +27,13 @@ export function MediaFilters({ type, query, onTypeChange, onQueryChange }: Media
         </SelectContent>
       </Select>
 
-      <div className="relative">
-        <SearchIcon className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+      <div className="relative min-w-0 flex-1">
+        <SearchIcon className="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
         <Input
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search by filename, title, alt text"
-          className="pl-9"
+          className="pl-10"
         />
       </div>
     </div>

@@ -53,7 +53,7 @@ export function MediaCard({ media, onSelect }: MediaCardProps) {
   return (
     <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.18, ease: "easeOut" }}>
       <Card className="surface-panel overflow-hidden">
-        <div className="relative h-44 border-b border-border/70 bg-muted">
+        <div className="relative h-44 border-b border-border/70 bg-muted/50">
           {media.type === MEDIA_TYPE.IMAGE ? (
             <Image
               src={imageUrl}
@@ -71,7 +71,7 @@ export function MediaCard({ media, onSelect }: MediaCardProps) {
         <CardHeader className="space-y-2 pb-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 space-y-1">
-              <p className="truncate text-sm font-medium">
+              <p className="truncate text-sm font-medium tracking-tight">
                 {media.title ?? media.originalFilename ?? "Untitled"}
               </p>
               <p className="truncate text-xs text-muted-foreground">{media.originalFilename ?? media.mimeType}</p>

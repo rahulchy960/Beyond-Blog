@@ -94,7 +94,7 @@ export function TagSelector({ value, availableTags, onChange }: TagSelectorProps
       </div>
 
       {availableSuggestions.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="surface-inset flex flex-wrap gap-1.5 p-2">
           {availableSuggestions.slice(0, 12).map((tag) => (
             <button
               key={tag.id}

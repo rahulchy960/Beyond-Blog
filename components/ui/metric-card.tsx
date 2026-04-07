@@ -12,20 +12,22 @@ type MetricCardProps = {
 
 export function MetricCard({ title, description, value, icon: Icon, className }: MetricCardProps) {
   return (
-    <Card className={cn("surface-panel relative overflow-hidden", className)}>
-      <CardHeader className="flex flex-row items-start justify-between gap-2">
-        <div className="space-y-1">
-          <CardDescription className="text-xs tracking-[0.1em] uppercase">{title}</CardDescription>
-          <CardTitle className="font-sans text-3xl leading-none font-semibold">{value}</CardTitle>
+    <Card className={cn("surface-panel relative h-full overflow-hidden", className)}>
+      <CardHeader className="flex flex-row items-start justify-between gap-3">
+        <div className="space-y-1.5">
+          <CardDescription className="text-[0.66rem] tracking-[0.16em] uppercase">{title}</CardDescription>
+          <CardTitle className="font-sans text-3xl leading-none font-semibold tracking-tight">{value}</CardTitle>
         </div>
         {Icon ? (
-          <span className="inline-flex size-9 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
-            <Icon className="size-4" />
+          <span className="inline-flex size-9 items-center justify-center rounded-lg border border-border/70 bg-surface-soft text-secondary-foreground">
+            <Icon className="size-4.5" />
           </span>
         ) : null}
       </CardHeader>
       {description ? (
-        <CardContent className="pt-0 text-sm text-muted-foreground">{description}</CardContent>
+        <CardContent className="min-h-14 pt-0 text-sm leading-6 text-muted-foreground">
+          {description}
+        </CardContent>
       ) : null}
     </Card>
   );

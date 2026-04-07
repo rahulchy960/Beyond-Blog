@@ -13,7 +13,7 @@ export default function UnauthorizedPage() {
           <Card className="ring-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <span className="inline-flex size-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+                <span className="inline-flex size-8 items-center justify-center rounded-lg border border-border/70 bg-secondary text-secondary-foreground">
                   <ShieldAlertIcon className="size-4" />
                 </span>
                 Unauthorized Access

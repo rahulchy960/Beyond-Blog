@@ -10,5 +10,9 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   const adminLabel =
     `${admin.firstName ?? ""} ${admin.lastName ?? ""}`.trim() || admin.email;
 
-  return <AdminShell adminLabel={adminLabel}>{children}</AdminShell>;
+  return (
+    <AdminShell adminLabel={adminLabel} adminImageUrl={admin.imageUrl}>
+      {children}
+    </AdminShell>
+  );
 }

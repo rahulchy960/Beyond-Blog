@@ -21,9 +21,9 @@ export function MediaUploadDropzone({
   onUploadComplete,
 }: MediaUploadDropzoneProps) {
   return (
-    <div className="surface-panel space-y-3 p-3">
+    <div className="surface-panel space-y-3 p-4">
       <div className="flex items-center gap-2 text-sm">
-        <span className="inline-flex size-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+        <span className="inline-flex size-8 items-center justify-center rounded-lg border border-border/70 bg-surface-soft text-secondary-foreground">
           <UploadCloudIcon className="size-4" />
         </span>
         <div>
@@ -34,7 +34,7 @@ export function MediaUploadDropzone({
 
       <UploadDropzone
         endpoint={endpoint}
-        className="ut-label:text-foreground ut-button:bg-primary ut-button:text-primary-foreground ut-allowed-content:text-muted-foreground ut-upload-icon:text-muted-foreground ut-border-border ut-border-dashed ut-bg-muted/35 ut-button:hover:bg-primary/90"
+        className="ut-label:text-foreground ut-button:bg-primary ut-button:text-primary-foreground ut-allowed-content:text-muted-foreground ut-upload-icon:text-muted-foreground ut-border-border ut-border-dashed ut-bg-muted/35 ut-button:hover:bg-primary/90 ut-button:rounded-lg"
         onClientUploadComplete={() => {
           toast.success(`${label} upload complete.`);
           onUploadComplete?.();

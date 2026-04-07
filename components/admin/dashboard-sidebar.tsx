@@ -17,17 +17,17 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
 
   return (
     <div className="surface-sidebar flex h-full flex-col">
-      <div className="px-5 py-5">
+      <div className="px-5 py-6">
         <Link href="/admin" onClick={onNavigate} className="inline-flex items-center gap-2">
           <span className="text-lg font-semibold tracking-tight">{platformName}</span>
         </Link>
-        <p className="mt-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+        <p className="mt-1 text-[0.68rem] uppercase tracking-[0.14em] text-muted-foreground">
           Editorial Console
         </p>
       </div>
 
       <div className="px-3 pb-4">
-        <nav className="grid gap-1.5">
+        <nav className="grid gap-1">
           {adminNavigation.map((item, index) => {
             const isActive =
               pathname === item.href ||
@@ -45,8 +45,8 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
                   onClick={onNavigate}
                   className={cn(
                     buttonVariants({ variant: isActive ? "secondary" : "ghost", size: "sm" }),
-                    "h-10 w-full justify-start gap-2.5 rounded-lg",
-                    isActive && "shadow-sm",
+                    "h-9 w-full justify-start gap-2.5 rounded-md px-2.5 text-[0.82rem]",
+                    isActive && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm",
                   )}
                 >
                   <item.icon className="size-4" />

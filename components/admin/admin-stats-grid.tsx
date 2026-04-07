@@ -34,13 +34,14 @@ export function AdminStatsGrid() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-6">
       {dashboardStatsQuery.data.map((stat, index) => (
         <motion.div
           key={stat.title}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.24, ease: "easeOut", delay: index * 0.03 }}
+          className={index === 0 ? "md:col-span-2 xl:col-span-2" : "xl:col-span-1"}
         >
           <MetricCard
             title={stat.title}

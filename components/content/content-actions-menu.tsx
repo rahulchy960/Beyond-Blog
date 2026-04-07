@@ -106,7 +106,9 @@ export function ContentActionsMenu({ id, status, isFeatured, editHref }: Content
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}>
+        <DropdownMenuTrigger
+          className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "rounded-md")}
+        >
           <EllipsisVerticalIcon className="size-4" />
           <span className="sr-only">Open actions</span>
         </DropdownMenuTrigger>
