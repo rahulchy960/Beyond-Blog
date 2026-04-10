@@ -4,6 +4,7 @@ import {
   FileText,
   FolderKanban,
   Gauge,
+  GraduationCap,
   ImageIcon,
   Layers3Icon,
   MessageSquare,
@@ -24,10 +25,11 @@ export const adminNavigation: AdminNavItem[] = [
   { title: "Journals", href: "/admin/journals", icon: BookOpenText },
   { title: "Articles", href: "/admin/articles", icon: FileText },
   { title: "Projects", href: "/admin/projects", icon: FolderKanban },
+  { title: "Courses", href: "/admin/courses", icon: GraduationCap },
   { title: "Media Library", href: "/admin/media", icon: ImageIcon },
   { title: "Comments", href: "/admin/comments", icon: MessageSquare },
   { title: "Quizzes", href: "/admin/quizzes", icon: Sparkles },
-  { title: "Site Settings", href: "/admin/settings", icon: Settings2 },
+  { title: "Profile & Footer", href: "/admin/settings/profile", icon: Settings2 },
   { title: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
 ];
 
@@ -44,3 +46,4 @@ export function getAdminPageTitle(pathname: string) {
 
   return fallback?.title ?? "Admin";
 }
+

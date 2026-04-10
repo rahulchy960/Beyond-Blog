@@ -48,6 +48,7 @@ export const createExternalVideoInputSchema = z.object({
 export const listMediaForPickerInputSchema = z.object({
   query: z.string().trim().max(120).optional(),
   limit: z.number().int().min(1).max(60).default(30),
+  types: z.array(z.enum(MEDIA_TYPES)).min(1).optional(),
 });
 
 export function normalizeOptionalText(value?: string | null) {
@@ -58,3 +59,4 @@ export function normalizeOptionalText(value?: string | null) {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
+

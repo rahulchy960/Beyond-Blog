@@ -27,11 +27,15 @@ const hasRequiredDelegates = (client: PrismaClient | undefined): client is Prism
 
   const checks: Array<[delegateName: string, methodName: string]> = [
     ["adminUser", "findUnique"],
+    ["adminProfile", "findUnique"],
     ["content", "findMany"],
     ["category", "findMany"],
     ["tag", "findMany"],
     ["contentTag", "createMany"],
     ["mediaAsset", "create"],
+    ["course", "findMany"],
+    ["courseSection", "findMany"],
+    ["courseLesson", "findMany"],
     ["comment", "count"],
     ["quizAttempt", "count"],
   ];
@@ -51,3 +55,4 @@ export const db = hasRequiredDelegates(cachedPrisma) ? cachedPrisma : createPris
 if (env.NODE_ENV !== "production") {
   globalForPrisma.prisma = db;
 }
+

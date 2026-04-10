@@ -17,6 +17,15 @@ type DashboardHeaderProps = {
   onOpenSidebar: () => void;
 };
 
+const adminQuickLinks = [
+  { label: "Journals", href: "/admin/journals", title: "Manage journals" },
+  { label: "Articles", href: "/admin/articles", title: "Manage articles" },
+  { label: "Projects", href: "/admin/projects", title: "Manage projects" },
+  { label: "Courses", href: "/admin/courses", title: "Manage courses" },
+  { label: "Quizzes", href: "/admin/quizzes", title: "Manage quizzes" },
+  { label: "Footer Edit", href: "/admin/settings/profile", title: "Edit public footer profile content" },
+] as const;
+
 function getInitials(label: string) {
   const parts = label
     .trim()
@@ -42,7 +51,7 @@ export function DashboardHeader({
 
   return (
     <header className="surface-glass sticky top-3 z-30 mx-3 md:mx-5">
-      <div className="flex h-[4.4rem] items-center justify-between gap-3 px-3 md:px-4">
+      <div className="flex h-[4.4rem] items-center gap-3 px-3 md:px-4">
         <div className="flex min-w-0 items-center gap-2.5">
           <Button
             variant="outline"
@@ -61,6 +70,25 @@ export function DashboardHeader({
           <p className="truncate text-[0.86rem] font-semibold tracking-[0.14em] text-foreground uppercase">
             {headerText}
           </p>
+        </div>
+
+        <div className="flex min-w-0 flex-1 justify-center px-1">
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-border/70 bg-surface-soft/70 p-1">
+            {adminQuickLinks.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "sm" }),
+                  "shrink-0 rounded-md px-2.5 text-[0.78rem]",
+                )}
+                title={item.title}
+                aria-label={item.title}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center gap-1.5 md:gap-2">

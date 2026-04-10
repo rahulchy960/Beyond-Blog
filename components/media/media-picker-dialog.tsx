@@ -34,9 +34,21 @@ type MediaPickerDialogProps = {
     mimeType: string;
     sizeBytes: number;
   }) => void;
+  types?: MediaType[];
+  title?: string;
+  description?: string;
+  showUploadArea?: boolean;
 };
 
-export function MediaPickerDialog({ open, onOpenChange, onSelect }: MediaPickerDialogProps) {
+export function MediaPickerDialog({
+  open,
+  onOpenChange,
+  onSelect,
+  types,
+  title = "Select media",
+  description = "Browse existing uploads and reuse media assets.",
+  showUploadArea = true,
+}: MediaPickerDialogProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
@@ -45,6 +57,7 @@ export function MediaPickerDialog({ open, onOpenChange, onSelect }: MediaPickerD
     trpc.media.listForPicker.queryOptions({
       query: query || undefined,
       limit: 30,
+      types,
     }),
   );
 
@@ -57,8 +70,8 @@ export function MediaPickerDialog({ open, onOpenChange, onSelect }: MediaPickerD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
-          <DialogTitle>Select Cover Image</DialogTitle>
-          <DialogDescription>Browse existing uploads or add a new image to reuse in content.</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
@@ -68,7 +81,7 @@ export function MediaPickerDialog({ open, onOpenChange, onSelect }: MediaPickerD
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search images by title, filename, or alt text"
+                placeholder="Search by title, filename, or alt text"
                 className="pl-10"
               />
             </div>
@@ -102,12 +115,26 @@ export function MediaPickerDialog({ open, onOpenChange, onSelect }: MediaPickerD
           </div>
 
           <div className="space-y-3">
-            <MediaUploadDropzone
-              endpoint="mediaImage"
-              label="Upload image"
-              description="PNG, JPG, WEBP, GIF up to 8MB each."
-              onUploadComplete={refreshMedia}
-            />
+            {showUploadArea ? (
+              <>
+                <MediaUploadDropzone
+                  endpoint="mediaImage"
+                  label="Upload image"
+                  description="PNG, JPG, WEBP, GIF up to 8MB each."
+                  onUploadComplete={refreshMedia}
+                />
+                <MediaUploadDropzone
+                  endpoint="mediaFile"
+                  label="Upload file"
+                  description="PDF, docs, sheets, and zipped resources."
+                  onUploadComplete={refreshMedia}
+                />
+              </>
+            ) : (
+              <div className="surface-panel p-4 text-sm text-muted-foreground">
+                Uploads are managed in the Media Library page.
+              </div>
+            )}
           </div>
         </div>
 
@@ -120,3 +147,4 @@ export function MediaPickerDialog({ open, onOpenChange, onSelect }: MediaPickerD
     </Dialog>
   );
 }
+

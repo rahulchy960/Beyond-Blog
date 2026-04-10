@@ -40,6 +40,25 @@ enum CommentStatus {
   DELETED
 }
 
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CourseLessonItemType {
+  RICH_TEXT
+  VIDEO
+  IMAGE
+  RESOURCE
+}
+
+enum CourseDifficultyLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
 model AdminUser {
   id          String    @id @default(cuid())
   clerkUserId String    @unique
@@ -53,41 +72,43 @@ model AdminUser {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  profile             AdminProfile?
   contents            Content[]    @relation("AdminAuthoredContent")
   uploadedMediaAssets MediaAsset[] @relation("AdminUploadedMedia")
   moderatedComments   Comment[]    @relation("CommentModeratedByAdmin")
   quizzes             Quiz[]       @relation("QuizCreatedByAdmin")
+  courses             Course[]     @relation("CourseCreatedByAdmin")
   auditLogs           AuditLog[]
 }
 
 model Content {
-  id               String        @id @default(cuid())
-  title            String
-  slug             String        @unique
-  summary          String?       @db.Text
+  id                String        @id @default(cuid())
+  title             String
+  slug              String        @unique
+  summary           String?       @db.Text
   /// Practical rich text strategy: persist sanitized HTML for rendering, with optional JSON editor state for future migrations/editing.
-  bodyHtml         String        @db.Text
-  bodyJson         Json?
-  type             ContentType
-  publishStatus    PublishStatus @default(DRAFT)
-  isFeatured       Boolean       @default(false)
-  seoTitle         String?
-  seoDescription   String?       @db.Text
-  publishedAt      DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  authorId         String
-  categoryId       String?
+  bodyHtml          String        @db.Text
+  bodyJson          Json?
+  type              ContentType
+  publishStatus     PublishStatus @default(DRAFT)
+  isFeatured        Boolean       @default(false)
+  seoTitle          String?
+  seoDescription    String?       @db.Text
+  publishedAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  authorId          String
+  categoryId        String?
   coverImageAssetId String?
 
-  author     AdminUser   @relation("AdminAuthoredContent", fields: [authorId], references: [id], onDelete: Restrict)
-  category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  coverImage MediaAsset? @relation("ContentCoverImage", fields: [coverImageAssetId], references: [id], onDelete: SetNull)
-  tags       ContentTag[]
+  author      AdminUser   @relation("AdminAuthoredContent", fields: [authorId], references: [id], onDelete: Restrict)
+  category    Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  coverImage  MediaAsset? @relation("ContentCoverImage", fields: [coverImageAssetId], references: [id], onDelete: SetNull)
+  tags        ContentTag[]
   mediaAssets MediaAsset[] @relation("ContentMediaAssets")
-  comments   Comment[]
-  likes      ContentLike[]
-  quizzes    Quiz[]
+  comments    Comment[]
+  likes       ContentLike[]
+  quizzes     Quiz[]
 
   @@index([type, publishStatus])
   @@index([publishStatus, publishedAt])
@@ -124,8 +145,8 @@ model Tag {
 }
 
 model ContentTag {
-  contentId String
-  tagId     String
+  contentId  String
+  tagId      String
   assignedAt DateTime @default(now())
 
   content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
@@ -136,32 +157,35 @@ model ContentTag {
 }
 
 model MediaAsset {
-  id               String    @id @default(cuid())
-  type             MediaType
-  title            String?
-  storageProvider  String?
-  storageKey       String?
-  providerAssetId  String?
-  externalUrl      String?
-  playbackUrl      String?
-  url              String
-  thumbnailUrl     String?
-  altText          String?
-  caption          String?   @db.Text
-  mimeType         String
-  sizeBytes        Int
-  width            Int?
-  height           Int?
-  durationSeconds  Int?
-  originalFilename String?
-  contentId        String?
+  id                String    @id @default(cuid())
+  type              MediaType
+  title             String?
+  storageProvider   String?
+  storageKey        String?
+  providerAssetId   String?
+  externalUrl       String?
+  playbackUrl       String?
+  url               String
+  thumbnailUrl      String?
+  altText           String?
+  caption           String?   @db.Text
+  mimeType          String
+  sizeBytes         Int
+  width             Int?
+  height            Int?
+  durationSeconds   Int?
+  originalFilename  String?
+  contentId         String?
   uploadedByAdminId String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  content         Content?   @relation("ContentMediaAssets", fields: [contentId], references: [id], onDelete: SetNull)
-  coverForContents Content[] @relation("ContentCoverImage")
-  uploadedByAdmin AdminUser? @relation("AdminUploadedMedia", fields: [uploadedByAdminId], references: [id], onDelete: SetNull)
+  content            Content?       @relation("ContentMediaAssets", fields: [contentId], references: [id], onDelete: SetNull)
+  coverForContents   Content[]      @relation("ContentCoverImage")
+  coverForCourses    Course[]       @relation("CourseCoverImage")
+  courseLessonMedia  CourseLesson[] @relation("CourseLessonMedia")
+  adminProfileImages AdminProfile[] @relation("AdminProfileImage")
+  uploadedByAdmin    AdminUser?     @relation("AdminUploadedMedia", fields: [uploadedByAdminId], references: [id], onDelete: SetNull)
 
   @@unique([storageProvider, storageKey])
   @@index([contentId, type])
@@ -170,23 +194,23 @@ model MediaAsset {
 }
 
 model Comment {
-  id                 String        @id @default(cuid())
-  contentId          String
-  parentId           String?
-  guestName          String
-  guestEmail         String?
-  guestWebsite       String?
+  id                   String        @id @default(cuid())
+  contentId            String
+  parentId             String?
+  guestName            String
+  guestEmail           String?
+  guestWebsite         String?
   guestFingerprintHash String?
-  body               String        @db.Text
-  status             CommentStatus @default(VISIBLE)
-  moderationNote     String?       @db.Text
-  moderatedByAdminId String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  body                 String        @db.Text
+  status               CommentStatus @default(VISIBLE)
+  moderationNote       String?       @db.Text
+  moderatedByAdminId   String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
-  content          Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  parent           Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: SetNull)
-  replies          Comment[] @relation("CommentThread")
+  content          Content    @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  parent           Comment?   @relation("CommentThread", fields: [parentId], references: [id], onDelete: SetNull)
+  replies          Comment[]  @relation("CommentThread")
   moderatedByAdmin AdminUser? @relation("CommentModeratedByAdmin", fields: [moderatedByAdminId], references: [id], onDelete: SetNull)
 
   @@index([contentId, status, createdAt])
@@ -208,23 +232,23 @@ model ContentLike {
 }
 
 model Quiz {
-  id                        String     @id @default(cuid())
-  title                     String
-  slug                      String     @unique
-  description               String?    @db.Text
-  status                    QuizStatus @default(DRAFT)
-  showAnswersAfterSubmit    Boolean    @default(true)
-  allowMultipleAttempts     Boolean    @default(true)
-  timeLimitSeconds          Int?
-  passingScore              Int?
-  contentId                 String?
-  createdByAdminId          String
-  publishedAt               DateTime?
-  createdAt                 DateTime   @default(now())
-  updatedAt                 DateTime   @updatedAt
+  id                       String     @id @default(cuid())
+  title                    String
+  slug                     String     @unique
+  description              String?    @db.Text
+  status                   QuizStatus @default(DRAFT)
+  showAnswersAfterSubmit   Boolean    @default(true)
+  allowMultipleAttempts    Boolean    @default(true)
+  timeLimitSeconds         Int?
+  passingScore             Int?
+  contentId                String?
+  createdByAdminId         String
+  publishedAt              DateTime?
+  createdAt                DateTime   @default(now())
+  updatedAt                DateTime   @updatedAt
 
-  content        Content?      @relation(fields: [contentId], references: [id], onDelete: SetNull)
-  createdByAdmin AdminUser     @relation("QuizCreatedByAdmin", fields: [createdByAdminId], references: [id], onDelete: Restrict)
+  content        Content?       @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  createdByAdmin AdminUser      @relation("QuizCreatedByAdmin", fields: [createdByAdminId], references: [id], onDelete: Restrict)
   questions      QuizQuestion[]
   attempts       QuizAttempt[]
 
@@ -303,31 +327,131 @@ model QuizAnswer {
   @@index([attemptId, questionId])
 }
 
+model Course {
+  id                       String                @id @default(cuid())
+  title                    String
+  slug                     String                @unique
+  summary                  String?               @db.Text
+  descriptionHtml          String?               @db.Text
+  descriptionJson          Json?
+  coverImageId             String?
+  difficultyLevel          CourseDifficultyLevel?
+  estimatedDurationMinutes Int?
+  isFeatured               Boolean               @default(false)
+  status                   CourseStatus          @default(DRAFT)
+  seoTitle                 String?
+  seoDescription           String?               @db.Text
+  publishedAt              DateTime?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  createdByAdminId         String
+
+  createdByAdmin AdminUser      @relation("CourseCreatedByAdmin", fields: [createdByAdminId], references: [id], onDelete: Restrict)
+  coverImage     MediaAsset?    @relation("CourseCoverImage", fields: [coverImageId], references: [id], onDelete: SetNull)
+  sections       CourseSection[]
+  lessons        CourseLesson[]
+
+  @@index([status, publishedAt])
+  @@index([isFeatured, status])
+  @@index([createdByAdminId, createdAt])
+}
+
+model CourseSection {
+  id          String   @id @default(cuid())
+  courseId    String
+  title       String
+  description String?  @db.Text
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons CourseLesson[]
+
+  @@index([courseId, order])
+  @@unique([courseId, order])
+}
+
+model CourseLesson {
+  id              String               @id @default(cuid())
+  courseId        String
+  sectionId       String?
+  title           String
+  slug            String?
+  summary         String?              @db.Text
+  order           Int                  @default(0)
+  itemType        CourseLessonItemType @default(RICH_TEXT)
+  bodyHtml        String?              @db.Text
+  bodyJson        Json?
+  mediaAssetId    String?
+  externalUrl     String?
+  durationMinutes Int?
+  isPreview       Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  publishedAt     DateTime?
+
+  course     Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  section    CourseSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  mediaAsset MediaAsset?   @relation("CourseLessonMedia", fields: [mediaAssetId], references: [id], onDelete: SetNull)
+
+  @@unique([courseId, slug])
+  @@index([courseId, sectionId, order])
+  @@index([courseId, itemType])
+}
+
+model AdminProfile {
+  id            String   @id @default(cuid())
+  singletonKey  String   @unique @default("ADMIN_PROFILE")
+  adminUserId   String   @unique
+  fullName      String?
+  designation   String?
+  bio           String?  @db.Text
+  address       String?  @db.Text
+  email         String?
+  phone         String?
+  jobs          String?  @db.Text
+  education     String?  @db.Text
+  profileImageId String?
+  linkedinUrl   String?
+  githubUrl     String?
+  twitterUrl    String?
+  websiteUrl    String?
+  copyrightText String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  adminUser    AdminUser  @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  profileImage MediaAsset? @relation("AdminProfileImage", fields: [profileImageId], references: [id], onDelete: SetNull)
+
+  @@index([updatedAt])
+}
+
 model SiteSetting {
-  id                                 String   @id @default(cuid())
-  singletonKey                       String   @unique @default("SITE_SETTINGS")
-  siteTitle                          String   @default("Beyond Blog")
-  siteSubtitle                       String?
-  homepageHeroText                   String?  @db.Text
-  contactEmail                       String?
-  socialLinks                        Json?
-  commentModerationEnabled           Boolean  @default(true)
-  defaultQuizShowAnswersAfterSubmit  Boolean  @default(true)
-  defaultQuizAllowMultipleAttempts   Boolean  @default(true)
-  defaultQuizTimeLimitSeconds        Int?
-  defaultQuizPassingScore            Int?
-  createdAt                          DateTime @default(now())
-  updatedAt                          DateTime @updatedAt
+  id                                String   @id @default(cuid())
+  singletonKey                      String   @unique @default("SITE_SETTINGS")
+  siteTitle                         String   @default("Beyond Blog")
+  siteSubtitle                      String?
+  homepageHeroText                  String?  @db.Text
+  contactEmail                      String?
+  socialLinks                       Json?
+  commentModerationEnabled          Boolean  @default(true)
+  defaultQuizShowAnswersAfterSubmit Boolean  @default(true)
+  defaultQuizAllowMultipleAttempts  Boolean  @default(true)
+  defaultQuizTimeLimitSeconds       Int?
+  defaultQuizPassingScore           Int?
+  createdAt                         DateTime @default(now())
+  updatedAt                         DateTime @updatedAt
 }
 
 model AuditLog {
-  id           String   @id @default(cuid())
-  action       String
-  entityType   String
-  entityId     String
-  metadata     Json?
-  adminUserId  String
-  createdAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String
+  metadata    Json?
+  adminUserId String
+  createdAt   DateTime @default(now())
 
   adminUser AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Restrict)
 
@@ -335,3 +459,4 @@ model AuditLog {
   @@index([adminUserId, createdAt])
   @@index([action, createdAt])
 }
+

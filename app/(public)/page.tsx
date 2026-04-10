@@ -6,6 +6,7 @@ import { buttonVariants } from "@/lib/ui/button-variants";
 import { getServerCaller } from "@/server/api/caller";
 import { FeaturedContentCard } from "@/components/content/featured-content-card";
 import { ContentCard } from "@/components/content/content-card";
+import { PublicCourseCard } from "@/components/course/public-course-card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -31,10 +32,11 @@ function getEntryDate(value: Date | null) {
 
 export default async function HomePage() {
   const caller = await getServerCaller();
-  const [journals, articles, projects] = await Promise.all([
+  const [journals, articles, projects, courses] = await Promise.all([
     caller.content.listPublished({ type: CONTENT_TYPE.JOURNAL, limit: 4 }),
     caller.content.listPublished({ type: CONTENT_TYPE.ARTICLE, limit: 4 }),
     caller.content.listPublished({ type: CONTENT_TYPE.PROJECT, limit: 4 }),
+    caller.course.listPublished({ limit: 3, featuredOnly: true }),
   ]);
 
   const latest = [
@@ -53,11 +55,9 @@ export default async function HomePage() {
           <section className="surface-panel-strong relative overflow-hidden px-6 py-8 md:px-9 md:py-10">
             <div className="grid gap-10 lg:grid-cols-[1.35fr_0.65fr]">
               <div className="space-y-6">
-                <p className="meta-kicker">
-                  Beyond Blog
-                </p>
+                <p className="meta-kicker">Beyond Blog</p>
                 <h1 className="max-w-4xl text-4xl leading-tight font-semibold tracking-tight md:text-6xl">
-                  Publishing journals, articles, and project notes with long-term editorial clarity.
+                  Publishing journals, articles, projects, and structured courses with long-term editorial clarity.
                 </h1>
                 <p className="max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
                   Public readers can browse every published piece openly. A single protected admin console powers
@@ -68,8 +68,8 @@ export default async function HomePage() {
                     Explore published work
                     <ArrowRightIcon className="size-4" />
                   </Link>
-                  <Link href="/sign-in" className={buttonVariants({ variant: "outline", size: "lg" })}>
-                    Admin sign-in
+                  <Link href="/courses" className={buttonVariants({ variant: "outline", size: "lg" })}>
+                    Browse courses
                   </Link>
                 </div>
               </div>
@@ -78,18 +78,10 @@ export default async function HomePage() {
                 <div className="surface-inset px-4 py-4">
                   <p className="meta-kicker">Publication Inventory</p>
                   <div className="mt-3 grid gap-1.5 text-sm">
-                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2">
-                      <span>Journals</span>
-                      <strong>{journals.length}</strong>
-                    </div>
-                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2">
-                      <span>Articles</span>
-                      <strong>{articles.length}</strong>
-                    </div>
-                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2">
-                      <span>Projects</span>
-                      <strong>{projects.length}</strong>
-                    </div>
+                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2"><span>Journals</span><strong>{journals.length}</strong></div>
+                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2"><span>Articles</span><strong>{articles.length}</strong></div>
+                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2"><span>Projects</span><strong>{projects.length}</strong></div>
+                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2"><span>Featured Courses</span><strong>{courses.length}</strong></div>
                   </div>
                 </div>
                 <p className="text-sm leading-7 text-muted-foreground">
@@ -102,11 +94,7 @@ export default async function HomePage() {
 
         {featured ? (
           <AnimatedPageWrapper delay={0.05} className="space-y-5">
-            <SectionHeader
-              eyebrow="Featured"
-              title="Latest Editorial Highlight"
-              description="A curated spotlight from the most recent published work."
-            />
+            <SectionHeader eyebrow="Featured" title="Latest Editorial Highlight" description="A curated spotlight from the most recent published work." />
             <FeaturedContentCard type={featured.type} item={featured.entry} />
           </AnimatedPageWrapper>
         ) : null}
@@ -118,10 +106,7 @@ export default async function HomePage() {
             description="Fresh journals, articles, and projects from the Beyond Blog editorial stream."
             className="border-b border-border/70 pb-4"
             actions={
-              <Link
-                href="/journals"
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "hidden sm:inline-flex")}
-              >
+              <Link href="/journals" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "hidden sm:inline-flex")}>
                 Browse all journals
               </Link>
             }
@@ -139,7 +124,23 @@ export default async function HomePage() {
             </div>
           )}
         </AnimatedPageWrapper>
+
+        {courses.length > 0 ? (
+          <AnimatedPageWrapper delay={0.1} className="space-y-6">
+            <SectionHeader
+              eyebrow="Courses"
+              title="Structured Learning Paths"
+              description="Programming-style modules and lessons, published for open learners."
+            />
+            <div className="grid gap-4">
+              {courses.map((course) => (
+                <PublicCourseCard key={course.id} course={course} />
+              ))}
+            </div>
+          </AnimatedPageWrapper>
+        ) : null}
       </SiteContainer>
     </div>
   );
 }
+

@@ -17,7 +17,7 @@ export default async function AdminDashboardPage() {
     <div className="space-y-8">
       <PageHeader
         title="Dashboard"
-        description="Single-admin command center for publishing operations, moderation, and editorial health."
+        description="Single-admin command center for publishing operations, moderation, media, and courses."
         actions={
           <>
             <Link href="/" className={buttonVariants({ variant: "outline", size: "sm" })}>
@@ -74,6 +74,10 @@ export default async function AdminDashboardPage() {
                   <PlusIcon className="size-4" />
                   New project
                 </Link>
+                <Link href="/admin/courses/new" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                  <PlusIcon className="size-4" />
+                  New course
+                </Link>
                 <Link href="/admin/quizzes" className={buttonVariants({ variant: "outline", size: "sm" })}>
                   <PlusIcon className="size-4" />
                   New quiz
@@ -86,3 +90,4 @@ export default async function AdminDashboardPage() {
     </div>
   );
 }
+

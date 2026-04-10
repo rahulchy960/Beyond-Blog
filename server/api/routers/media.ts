@@ -68,7 +68,7 @@ export const mediaRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       return ctx.db.mediaAsset.findMany({
         where: {
-          type: MEDIA_TYPE.IMAGE,
+          type: input.types ? { in: input.types } : MEDIA_TYPE.IMAGE,
           ...(input.query
             ? {
                 OR: [
@@ -203,3 +203,4 @@ export const mediaRouter = createTRPCRouter({
       return created;
     }),
 });
+

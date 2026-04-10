@@ -1,8 +1,11 @@
-import type { Content, MediaAsset } from "@prisma/client";
+import type { Content, Course, CourseLesson, MediaAsset } from "@prisma/client";
 
 export type ContentType = Content["type"];
 export type PublishStatus = Content["publishStatus"];
 export type MediaType = MediaAsset["type"];
+export type CourseStatus = Course["status"];
+export type CourseLessonItemType = CourseLesson["itemType"];
+export type CourseDifficultyLevel = Exclude<Course["difficultyLevel"], null>;
 
 export const CONTENT_TYPE: Record<ContentType, ContentType> = {
   JOURNAL: "JOURNAL",
@@ -22,6 +25,25 @@ export const MEDIA_TYPE: Record<MediaType, MediaType> = {
   FILE: "FILE",
 };
 
+export const COURSE_STATUS: Record<CourseStatus, CourseStatus> = {
+  DRAFT: "DRAFT",
+  PUBLISHED: "PUBLISHED",
+  ARCHIVED: "ARCHIVED",
+};
+
+export const COURSE_LESSON_ITEM_TYPE: Record<CourseLessonItemType, CourseLessonItemType> = {
+  RICH_TEXT: "RICH_TEXT",
+  VIDEO: "VIDEO",
+  IMAGE: "IMAGE",
+  RESOURCE: "RESOURCE",
+};
+
+export const COURSE_DIFFICULTY_LEVEL: Record<CourseDifficultyLevel, CourseDifficultyLevel> = {
+  BEGINNER: "BEGINNER",
+  INTERMEDIATE: "INTERMEDIATE",
+  ADVANCED: "ADVANCED",
+};
+
 export const CONTENT_TYPES = [
   CONTENT_TYPE.JOURNAL,
   CONTENT_TYPE.ARTICLE,
@@ -39,3 +61,23 @@ export const MEDIA_TYPES = [
   MEDIA_TYPE.VIDEO,
   MEDIA_TYPE.FILE,
 ] as const;
+
+export const COURSE_STATUSES = [
+  COURSE_STATUS.DRAFT,
+  COURSE_STATUS.PUBLISHED,
+  COURSE_STATUS.ARCHIVED,
+] as const;
+
+export const COURSE_LESSON_ITEM_TYPES = [
+  COURSE_LESSON_ITEM_TYPE.RICH_TEXT,
+  COURSE_LESSON_ITEM_TYPE.VIDEO,
+  COURSE_LESSON_ITEM_TYPE.IMAGE,
+  COURSE_LESSON_ITEM_TYPE.RESOURCE,
+] as const;
+
+export const COURSE_DIFFICULTY_LEVELS = [
+  COURSE_DIFFICULTY_LEVEL.BEGINNER,
+  COURSE_DIFFICULTY_LEVEL.INTERMEDIATE,
+  COURSE_DIFFICULTY_LEVEL.ADVANCED,
+] as const;
+

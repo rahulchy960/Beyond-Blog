@@ -1,10 +1,6 @@
-import { AdminSectionPlaceholder } from "@/components/admin/admin-section-placeholder";
+import { redirect } from "next/navigation";
 
 export default function AdminSettingsPage() {
-  return (
-    <AdminSectionPlaceholder
-      title="Site Settings"
-      description="Control Beyond Blog branding, hero copy, moderation, and quiz defaults."
-    />
-  );
+  redirect("/admin/settings/profile");
 }
+

@@ -45,7 +45,7 @@ async function main() {
     );
   }
 
-  await prisma.adminUser.upsert({
+  const ownerAdmin = await prisma.adminUser.upsert({
     where: { role: OWNER_ADMIN_ROLE },
     update: {
       clerkUserId: env.SINGLE_ADMIN_CLERK_USER_ID,
@@ -72,10 +72,21 @@ async function main() {
       siteTitle: "Beyond Blog",
       siteSubtitle: "Research, projects, insights, and public learning",
       homepageHeroText:
-        "Beyond Blog shares journals, articles, projects, media, and public quizzes.",
+        "Beyond Blog shares journals, articles, projects, media, quizzes, and courses.",
       commentModerationEnabled: true,
       defaultQuizShowAnswersAfterSubmit: true,
       defaultQuizAllowMultipleAttempts: true,
+    },
+  });
+
+  await prisma.adminProfile.upsert({
+    where: { singletonKey: "ADMIN_PROFILE" },
+    update: {
+      adminUserId: ownerAdmin.id,
+    },
+    create: {
+      singletonKey: "ADMIN_PROFILE",
+      adminUserId: ownerAdmin.id,
     },
   });
 }
@@ -89,3 +100,4 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
+

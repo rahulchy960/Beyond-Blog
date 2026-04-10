@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { Prisma } from "@prisma/client";
 import { createTRPCRouter, adminProcedure } from "@/server/api/trpc";
 import { findAdminById, updateAdminImageUrlById } from "@/lib/auth/admin-repository";
 
@@ -27,17 +28,25 @@ export const adminRouter = createTRPCRouter({
   }),
 
   dashboardStats: adminProcedure.query(async ({ ctx }) => {
-    const [totalContent, publishedContent, draftContent, totalComments, totalQuizAttempts] =
+    const safeCourseCount = async () => {
+      try {
+        return await ctx.db.course.count();
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
+          return 0;
+        }
+        throw error;
+      }
+    };
+
+    const [totalContent, publishedContent, draftContent, totalComments, totalQuizAttempts, totalCourses] =
       await Promise.all([
         ctx.db.content.count(),
-        ctx.db.content.count({
-          where: { publishStatus: "PUBLISHED" },
-        }),
-        ctx.db.content.count({
-          where: { publishStatus: "DRAFT" },
-        }),
+        ctx.db.content.count({ where: { publishStatus: "PUBLISHED" } }),
+        ctx.db.content.count({ where: { publishStatus: "DRAFT" } }),
         ctx.db.comment.count(),
         ctx.db.quizAttempt.count(),
+        safeCourseCount(),
       ]);
 
     return [
@@ -55,6 +64,11 @@ export const adminRouter = createTRPCRouter({
         title: "Draft Content",
         value: draftContent.toLocaleString(),
         description: "Pending editorial review",
+      },
+      {
+        title: "Courses",
+        value: totalCourses.toLocaleString(),
+        description: "Structured learning tracks",
       },
       {
         title: "Total Comments",
@@ -81,3 +95,4 @@ export const adminRouter = createTRPCRouter({
       };
     }),
 });
+
