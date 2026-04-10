@@ -1,4 +1,4 @@
-import type { Content, Course, CourseLesson, MediaAsset } from "@prisma/client";
+import type { Comment, Content, ContentLike, Course, CourseLesson, MediaAsset } from "@prisma/client";
 
 export type ContentType = Content["type"];
 export type PublishStatus = Content["publishStatus"];
@@ -6,6 +6,8 @@ export type MediaType = MediaAsset["type"];
 export type CourseStatus = Course["status"];
 export type CourseLessonItemType = CourseLesson["itemType"];
 export type CourseDifficultyLevel = Exclude<Course["difficultyLevel"], null>;
+export type CommentStatus = Comment["status"];
+export type InteractionTargetType = ContentLike["targetType"];
 
 export const CONTENT_TYPE: Record<ContentType, ContentType> = {
   JOURNAL: "JOURNAL",
@@ -44,6 +46,19 @@ export const COURSE_DIFFICULTY_LEVEL: Record<CourseDifficultyLevel, CourseDiffic
   ADVANCED: "ADVANCED",
 };
 
+export const COMMENT_STATUS: Record<CommentStatus, CommentStatus> = {
+  PENDING: "PENDING",
+  VISIBLE: "VISIBLE",
+  HIDDEN: "HIDDEN",
+  DELETED: "DELETED",
+};
+
+export const INTERACTION_TARGET_TYPE: Record<InteractionTargetType, InteractionTargetType> = {
+  CONTENT: "CONTENT",
+  COURSE: "COURSE",
+  COURSE_LESSON: "COURSE_LESSON",
+};
+
 export const CONTENT_TYPES = [
   CONTENT_TYPE.JOURNAL,
   CONTENT_TYPE.ARTICLE,
@@ -79,5 +94,18 @@ export const COURSE_DIFFICULTY_LEVELS = [
   COURSE_DIFFICULTY_LEVEL.BEGINNER,
   COURSE_DIFFICULTY_LEVEL.INTERMEDIATE,
   COURSE_DIFFICULTY_LEVEL.ADVANCED,
+] as const;
+
+export const COMMENT_STATUSES = [
+  COMMENT_STATUS.PENDING,
+  COMMENT_STATUS.VISIBLE,
+  COMMENT_STATUS.HIDDEN,
+  COMMENT_STATUS.DELETED,
+] as const;
+
+export const INTERACTION_TARGET_TYPES = [
+  INTERACTION_TARGET_TYPE.CONTENT,
+  INTERACTION_TARGET_TYPE.COURSE,
+  INTERACTION_TARGET_TYPE.COURSE_LESSON,
 ] as const;
 

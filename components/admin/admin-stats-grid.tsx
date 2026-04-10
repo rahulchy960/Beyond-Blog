@@ -2,7 +2,16 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
-import { BookOpenTextIcon, CheckCircle2Icon, ClipboardEditIcon, MessageSquareIcon, SparklesIcon } from "lucide-react";
+import {
+  BookOpenTextIcon,
+  CheckCircle2Icon,
+  ClipboardEditIcon,
+  GraduationCapIcon,
+  MessageSquareIcon,
+  SparklesIcon,
+  ThumbsUpIcon,
+  TimerResetIcon,
+} from "lucide-react";
 import { useTRPC } from "@/hooks/use-trpc";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -12,7 +21,10 @@ const METRIC_ICONS = [
   BookOpenTextIcon,
   CheckCircle2Icon,
   ClipboardEditIcon,
+  GraduationCapIcon,
   MessageSquareIcon,
+  TimerResetIcon,
+  ThumbsUpIcon,
   SparklesIcon,
 ] as const;
 

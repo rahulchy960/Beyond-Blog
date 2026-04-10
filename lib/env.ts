@@ -53,6 +53,7 @@ const envSchema = z.object({
   SINGLE_ADMIN_FIRST_NAME: optionalString(),
   SINGLE_ADMIN_LAST_NAME: optionalString(),
   ALLOW_ADMIN_REASSIGN: z.enum(["true", "false"]).default("false"),
+  INTERACTION_TOKEN_SECRET: optionalString(),
   UPLOADTHING_TOKEN: optionalString(),
 });
 

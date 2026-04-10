@@ -1,10 +1,5 @@
-import { AdminSectionPlaceholder } from "@/components/admin/admin-section-placeholder";
+import { AdminCommentsModerationScreen } from "@/components/interaction/admin-comments-moderation-screen";
 
 export default function AdminCommentsPage() {
-  return (
-    <AdminSectionPlaceholder
-      title="Comments"
-      description="Moderate guest comments and maintain healthy discussion quality."
-    />
-  );
+  return <AdminCommentsModerationScreen />;
 }

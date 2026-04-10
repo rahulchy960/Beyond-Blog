@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ActivityIcon, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/admin";
 import { AdminAvatarSettings } from "@/components/admin/admin-avatar-settings";
+import { AdminInteractionInsights } from "@/components/admin/admin-interaction-insights";
 import { AdminStatsGrid } from "@/components/admin/admin-stats-grid";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
-import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,21 +36,7 @@ export default async function AdminDashboardPage() {
 
       <div className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
         <AnimatedPageWrapper delay={0.06}>
-          <Card className="surface-panel h-full">
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>
-                Editorial actions, moderation events, and publication updates will appear here.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EmptyState
-                icon={ActivityIcon}
-                title="No recent activity yet"
-                description="Once content and moderation events begin, your timeline will surface them here."
-              />
-            </CardContent>
-          </Card>
+          <AdminInteractionInsights />
         </AnimatedPageWrapper>
 
         <AnimatedPageWrapper delay={0.08}>

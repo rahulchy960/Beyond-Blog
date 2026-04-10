@@ -1,14 +1,16 @@
 import { format } from "date-fns";
 import Image from "next/image";
 import { CalendarDaysIcon, FolderKanbanIcon } from "lucide-react";
-import { type ContentType } from "@/lib/content/enums";
+import { INTERACTION_TARGET_TYPE, type ContentType } from "@/lib/content/enums";
 import { contentTypeMeta } from "@/lib/content/constants";
+import { CommentThread } from "@/components/interaction/comment-thread";
 import { Badge } from "@/components/ui/badge";
 import { RichTextRenderer } from "@/components/content/rich-text-renderer";
 
 type PublicContentArticleProps = {
   type: ContentType;
   content: {
+    id: string;
     title: string;
     summary: string | null;
     bodyHtml: string;
@@ -76,6 +78,12 @@ export function PublicContentArticle({ type, content }: PublicContentArticleProp
       <section className="surface-reading p-6 md:p-9">
         <RichTextRenderer html={content.bodyHtml} />
       </section>
+
+      <CommentThread
+        targetType={INTERACTION_TARGET_TYPE.CONTENT}
+        targetId={content.id}
+        title="Reader discussion"
+      />
     </article>
   );
 }

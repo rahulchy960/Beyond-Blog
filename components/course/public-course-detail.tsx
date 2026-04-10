@@ -2,12 +2,15 @@ import { format } from "date-fns";
 import Image from "next/image";
 import Link from "next/link";
 import { Clock3Icon, ExternalLinkIcon, Layers3Icon, SparklesIcon } from "lucide-react";
+import { INTERACTION_TARGET_TYPE } from "@/lib/content/enums";
 import { courseDifficultyLabels, courseLessonTypeLabels } from "@/lib/course/constants";
+import { CommentThread } from "@/components/interaction/comment-thread";
 import { Badge } from "@/components/ui/badge";
 import { RichTextRenderer } from "@/components/content/rich-text-renderer";
 
 type PublicCourseDetailProps = {
   course: {
+    id: string;
     title: string;
     summary: string | null;
     descriptionHtml: string | null;
@@ -77,7 +80,7 @@ function CourseLessonBlock({
   lesson: PublicCourseDetailProps["course"]["sections"][number]["lessons"][number];
 }) {
   return (
-    <article className="surface-inset space-y-3 p-4">
+    <article id={`lesson-${lesson.id}`} className="surface-inset space-y-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="text-lg font-semibold tracking-tight">{lesson.title}</h4>
         <Badge variant="outline">{courseLessonTypeLabels[lesson.itemType]}</Badge>
@@ -180,6 +183,12 @@ export function PublicCourseDetail({ course }: PublicCourseDetailProps) {
           </div>
         ) : null}
       </section>
+
+      <CommentThread
+        targetType={INTERACTION_TARGET_TYPE.COURSE}
+        targetId={course.id}
+        title="Course discussion"
+      />
     </article>
   );
 }

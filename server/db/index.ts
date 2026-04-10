@@ -37,6 +37,8 @@ const hasRequiredDelegates = (client: PrismaClient | undefined): client is Prism
     ["courseSection", "findMany"],
     ["courseLesson", "findMany"],
     ["comment", "count"],
+    ["contentLike", "count"],
+    ["siteSetting", "findUnique"],
     ["quizAttempt", "count"],
   ];
 

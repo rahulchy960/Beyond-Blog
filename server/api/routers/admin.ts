@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
+import { COMMENT_STATUS, type CommentStatus } from "@/lib/content/enums";
 import { createTRPCRouter, adminProcedure } from "@/server/api/trpc";
 import { findAdminById, updateAdminImageUrlById } from "@/lib/auth/admin-repository";
 
@@ -28,25 +29,109 @@ export const adminRouter = createTRPCRouter({
   }),
 
   dashboardStats: adminProcedure.query(async ({ ctx }) => {
+    const hasPendingCommentStatus = async () => {
+      try {
+        const rows = await ctx.db.$queryRaw<Array<{ exists: boolean }>>`
+          SELECT EXISTS (
+            SELECT 1
+            FROM pg_type t
+            JOIN pg_enum e ON t.oid = e.enumtypid
+            WHERE t.typname = 'CommentStatus'
+              AND e.enumlabel = 'PENDING'
+          ) AS "exists"
+        `;
+
+        return rows[0]?.exists ?? false;
+      } catch {
+        return false;
+      }
+    };
+
+    const isLegacyInteractionSchemaError = (error: unknown) => {
+      const message = String(error ?? "");
+      if (message.includes('invalid input value for enum "CommentStatus"')) {
+        return true;
+      }
+
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+        return false;
+      }
+
+      if (error.code === "P2021" || error.code === "P2022") {
+        return true;
+      }
+
+      if (error.code === "P2010") {
+        const text = String(error.message);
+        return (
+          text.includes("Comment") ||
+          text.includes("ContentLike") ||
+          text.includes("commentStatus") ||
+          text.includes("CommentStatus")
+        );
+      }
+
+      return false;
+    };
+
     const safeCourseCount = async () => {
       try {
         return await ctx.db.course.count();
       } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
+        if (isLegacyInteractionSchemaError(error)) {
           return 0;
         }
         throw error;
       }
     };
 
-    const [totalContent, publishedContent, draftContent, totalComments, totalQuizAttempts, totalCourses] =
+    const safeLikeCount = async () => {
+      try {
+        return await ctx.db.contentLike.count();
+      } catch (error) {
+        if (isLegacyInteractionSchemaError(error)) {
+          return 0;
+        }
+        throw error;
+      }
+    };
+
+    const safeCommentCount = async (status: CommentStatus, pendingSupported: boolean) => {
+      if (status === COMMENT_STATUS.PENDING && !pendingSupported) {
+        return 0;
+      }
+
+      try {
+        return await ctx.db.comment.count({ where: { status } });
+      } catch (error) {
+        if (isLegacyInteractionSchemaError(error)) {
+          return 0;
+        }
+        throw error;
+      }
+    };
+
+    const pendingSupported = await hasPendingCommentStatus();
+
+    const [
+      totalContent,
+      publishedContent,
+      draftContent,
+      totalVisibleComments,
+      pendingComments,
+      totalQuizAttempts,
+      totalCourses,
+      totalLikes,
+    ] =
       await Promise.all([
         ctx.db.content.count(),
         ctx.db.content.count({ where: { publishStatus: "PUBLISHED" } }),
         ctx.db.content.count({ where: { publishStatus: "DRAFT" } }),
-        ctx.db.comment.count(),
+        safeCommentCount(COMMENT_STATUS.VISIBLE, pendingSupported),
+        safeCommentCount(COMMENT_STATUS.PENDING, pendingSupported),
         ctx.db.quizAttempt.count(),
         safeCourseCount(),
+        safeLikeCount(),
       ]);
 
     return [
@@ -72,8 +157,18 @@ export const adminRouter = createTRPCRouter({
       },
       {
         title: "Total Comments",
-        value: totalComments.toLocaleString(),
-        description: "Guest comments across published content",
+        value: totalVisibleComments.toLocaleString(),
+        description: "Visible guest comments across published content",
+      },
+      {
+        title: "Pending Comments",
+        value: pendingComments.toLocaleString(),
+        description: "Awaiting moderation review",
+      },
+      {
+        title: "Total Likes",
+        value: totalLikes.toLocaleString(),
+        description: "Anonymous likes from public visitors",
       },
       {
         title: "Total Quiz Attempts",

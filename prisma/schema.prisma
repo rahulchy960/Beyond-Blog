@@ -35,9 +35,16 @@ enum QuizStatus {
 }
 
 enum CommentStatus {
+  PENDING
   VISIBLE
   HIDDEN
   DELETED
+}
+
+enum InteractionTargetType {
+  CONTENT
+  COURSE
+  COURSE_LESSON
 }
 
 enum CourseStatus {
@@ -195,7 +202,10 @@ model MediaAsset {
 
 model Comment {
   id                   String        @id @default(cuid())
-  contentId            String
+  targetType           InteractionTargetType
+  contentId            String?
+  courseId             String?
+  courseLessonId       String?
   parentId             String?
   guestName            String
   guestEmail           String?
@@ -208,27 +218,43 @@ model Comment {
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
-  content          Content    @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  parent           Comment?   @relation("CommentThread", fields: [parentId], references: [id], onDelete: SetNull)
-  replies          Comment[]  @relation("CommentThread")
-  moderatedByAdmin AdminUser? @relation("CommentModeratedByAdmin", fields: [moderatedByAdminId], references: [id], onDelete: SetNull)
+  content          Content?     @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  course           Course?      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseLesson     CourseLesson? @relation(fields: [courseLessonId], references: [id], onDelete: Cascade)
+  parent           Comment?     @relation("CommentThread", fields: [parentId], references: [id], onDelete: SetNull)
+  replies          Comment[]    @relation("CommentThread")
+  moderatedByAdmin AdminUser?   @relation("CommentModeratedByAdmin", fields: [moderatedByAdminId], references: [id], onDelete: SetNull)
 
+  @@index([targetType, status, createdAt])
   @@index([contentId, status, createdAt])
+  @@index([courseId, status, createdAt])
+  @@index([courseLessonId, status, createdAt])
   @@index([parentId])
   @@index([guestEmail])
+  @@index([guestFingerprintHash, createdAt])
 }
 
 model ContentLike {
   id               String   @id @default(cuid())
-  contentId        String
+  targetType       InteractionTargetType
+  contentId        String?
+  courseId         String?
+  courseLessonId   String?
   /// SHA-256 (or equivalent) hash of anonymous visitor token/fingerprint. No raw IP is stored.
   visitorTokenHash String
   createdAt        DateTime @default(now())
 
-  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  content      Content?      @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  course       Course?       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseLesson CourseLesson? @relation(fields: [courseLessonId], references: [id], onDelete: Cascade)
 
   @@unique([contentId, visitorTokenHash])
+  @@unique([courseId, visitorTokenHash])
+  @@unique([courseLessonId, visitorTokenHash])
+  @@index([targetType, createdAt])
   @@index([contentId, createdAt])
+  @@index([courseId, createdAt])
+  @@index([courseLessonId, createdAt])
 }
 
 model Quiz {
@@ -350,6 +376,8 @@ model Course {
   coverImage     MediaAsset?    @relation("CourseCoverImage", fields: [coverImageId], references: [id], onDelete: SetNull)
   sections       CourseSection[]
   lessons        CourseLesson[]
+  comments       Comment[]
+  likes          ContentLike[]
 
   @@index([status, publishedAt])
   @@index([isFeatured, status])
@@ -394,6 +422,8 @@ model CourseLesson {
   course     Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
   section    CourseSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   mediaAsset MediaAsset?   @relation("CourseLessonMedia", fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  comments   Comment[]
+  likes      ContentLike[]
 
   @@unique([courseId, slug])
   @@index([courseId, sectionId, order])

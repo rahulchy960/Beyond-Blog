@@ -31,7 +31,7 @@ npm run dev
 If you updated schema fields, also run:
 
 ```bash
-npm run db:migrate -- --name add_media_library_fields
+npm run db:migrate -- --name add_guest_interactions
 ```
 
 ## Single Admin Setup
@@ -126,7 +126,30 @@ Media uploads are handled by `app/api/uploadthing/route.ts` and persisted into `
   - copy URL
   - edit metadata
   - delete
-  - pick existing image from content editor cover-image workflow
+- pick existing image from content editor cover-image workflow
+
+## Guest Interactions (V1)
+
+- Public guests can like and comment on:
+  - journals
+  - articles
+  - projects
+  - courses
+- Admin moderation route: `/admin/comments`
+- Moderation statuses:
+  - `PENDING`
+  - `VISIBLE`
+  - `HIDDEN`
+  - `DELETED`
+- Likes are anonymous and deduplicated per visitor token hash (no raw IP storage).
+- `INTERACTION_TOKEN_SECRET` can be set in `.env` for stable hashing. If omitted, Clerk secret is used.
+
+After pulling schema changes, run:
+
+```bash
+npm run db:migrate -- --name add_guest_interactions
+npm run db:generate
+```
 
 ## Scripts
 
