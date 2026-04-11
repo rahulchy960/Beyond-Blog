@@ -14,11 +14,13 @@ import {
 import { toast } from "sonner";
 import { useTRPC } from "@/hooks/use-trpc";
 import { QUIZ_STATUS, type QuizQuestionType } from "@/lib/content/enums";
+import { RelatedContentSection } from "@/components/discovery/related-content-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { type DiscoveryResultItem } from "@/types/discovery";
 
 type PublicQuizAttemptProps = {
   quiz: {
@@ -51,6 +53,7 @@ type PublicQuizAttemptProps = {
       }>;
     }>;
   };
+  relatedItems?: DiscoveryResultItem[];
 };
 
 type QuizStage = "intro" | "in_progress" | "result";
@@ -85,7 +88,7 @@ function formatSeconds(value: number) {
   return `${mins}:${String(secs).padStart(2, "0")}`;
 }
 
-export function PublicQuizAttempt({ quiz }: PublicQuizAttemptProps) {
+export function PublicQuizAttempt({ quiz, relatedItems = [] }: PublicQuizAttemptProps) {
   const trpc = useTRPC();
   const [stage, setStage] = useState<QuizStage>("intro");
   const [guestName, setGuestName] = useState("");
@@ -416,6 +419,12 @@ export function PublicQuizAttempt({ quiz }: PublicQuizAttemptProps) {
           ) : null}
         </section>
       ) : null}
+
+      <RelatedContentSection
+        items={relatedItems}
+        title="Related Assessments & Reads"
+        description="Continue with connected quizzes, courses, and editorial content."
+      />
     </article>
   );
 }

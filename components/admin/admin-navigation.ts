@@ -11,6 +11,8 @@ import {
   ScrollText,
   Settings2,
   Sparkles,
+  TagsIcon,
+  ShapesIcon,
 } from "lucide-react";
 
 export type AdminNavItem = {
@@ -29,6 +31,8 @@ export const adminNavigation: AdminNavItem[] = [
   { title: "Media Library", href: "/admin/media", icon: ImageIcon },
   { title: "Comments", href: "/admin/comments", icon: MessageSquare },
   { title: "Quizzes", href: "/admin/quizzes", icon: Sparkles },
+  { title: "Categories", href: "/admin/categories", icon: ShapesIcon },
+  { title: "Tags", href: "/admin/tags", icon: TagsIcon },
   { title: "Profile & Footer", href: "/admin/settings/profile", icon: Settings2 },
   { title: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
 ];

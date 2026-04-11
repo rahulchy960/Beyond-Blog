@@ -59,7 +59,12 @@ export function FeaturedContentCard({ type, item }: FeaturedContentCardProps) {
               </CardTitle>
               <CardDescription className="text-[0.82rem]">
                 {publishedAt ? format(publishedAt, "MMMM d, yyyy") : "Unpublished"}
-                {item.category ? ` - ${item.category.name}` : ""}
+                {item.category ? " - " : ""}
+                {item.category ? (
+                  <Link href={`/categories/${item.category.slug}`} className="hover:text-foreground">
+                    {item.category.name}
+                  </Link>
+                ) : null}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pb-6">
@@ -67,9 +72,11 @@ export function FeaturedContentCard({ type, item }: FeaturedContentCardProps) {
               {item.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {item.tags.slice(0, 5).map((tag) => (
-                    <Badge key={tag.tag.slug} variant="secondary">
-                      {tag.tag.name}
-                    </Badge>
+                    <Link key={tag.tag.slug} href={`/tags/${tag.tag.slug}`}>
+                      <Badge variant="secondary">
+                        {tag.tag.name}
+                      </Badge>
+                    </Link>
                   ))}
                 </div>
               ) : null}

@@ -52,6 +52,13 @@ export const adminRouter = createTRPCRouter({
       if (message.includes('invalid input value for enum "CommentStatus"')) {
         return true;
       }
+      if (
+        message.includes("does not exist in the current database") ||
+        message.includes("The column `(not available)` does not exist") ||
+        (message.includes("column") && message.includes("does not exist"))
+      ) {
+        return true;
+      }
 
       if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
         return false;

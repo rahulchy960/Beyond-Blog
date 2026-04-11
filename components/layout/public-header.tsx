@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 
 const PUBLIC_NAV = [
   { label: "Home", href: "/" },
+  { label: "Search", href: "/search" },
   { label: "Journals", href: "/journals" },
   { label: "Articles", href: "/articles" },
   { label: "Projects", href: "/projects" },

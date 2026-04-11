@@ -1,11 +1,14 @@
 import { format } from "date-fns";
 import Image from "next/image";
+import Link from "next/link";
 import { CalendarDaysIcon, FolderKanbanIcon } from "lucide-react";
 import { INTERACTION_TARGET_TYPE, type ContentType } from "@/lib/content/enums";
 import { contentTypeMeta } from "@/lib/content/constants";
 import { CommentThread } from "@/components/interaction/comment-thread";
+import { RelatedContentSection } from "@/components/discovery/related-content-section";
 import { Badge } from "@/components/ui/badge";
 import { RichTextRenderer } from "@/components/content/rich-text-renderer";
+import { type DiscoveryResultItem } from "@/types/discovery";
 
 type PublicContentArticleProps = {
   type: ContentType;
@@ -19,9 +22,10 @@ type PublicContentArticleProps = {
     tags: Array<{ tag: { name: string; slug: string } }>;
     coverImage: { url: string; altText: string | null } | null;
   };
+  relatedItems?: DiscoveryResultItem[];
 };
 
-export function PublicContentArticle({ type, content }: PublicContentArticleProps) {
+export function PublicContentArticle({ type, content, relatedItems = [] }: PublicContentArticleProps) {
   const meta = contentTypeMeta[type];
 
   return (
@@ -40,10 +44,13 @@ export function PublicContentArticle({ type, content }: PublicContentArticleProp
             {content.publishedAt ? format(content.publishedAt, "MMMM d, yyyy") : "Draft"}
           </span>
           {content.category ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted/65 px-3 py-1">
+            <Link
+              href={`/categories/${content.category.slug}`}
+              className="inline-flex items-center gap-1 rounded-full bg-muted/65 px-3 py-1 hover:text-foreground"
+            >
               <FolderKanbanIcon className="size-3.5" />
               {content.category.name}
-            </span>
+            </Link>
           ) : null}
         </div>
 
@@ -54,9 +61,11 @@ export function PublicContentArticle({ type, content }: PublicContentArticleProp
         {content.tags.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {content.tags.map((tag) => (
-              <Badge key={tag.tag.slug} variant="secondary">
-                {tag.tag.name}
-              </Badge>
+              <Link key={tag.tag.slug} href={`/tags/${tag.tag.slug}`}>
+                <Badge variant="secondary">
+                  {tag.tag.name}
+                </Badge>
+              </Link>
             ))}
           </div>
         ) : null}
@@ -83,6 +92,12 @@ export function PublicContentArticle({ type, content }: PublicContentArticleProp
         targetType={INTERACTION_TARGET_TYPE.CONTENT}
         targetId={content.id}
         title="Reader discussion"
+      />
+
+      <RelatedContentSection
+        items={relatedItems}
+        title="Related Publications"
+        description="Publications connected by editorial themes, categories, and shared tags."
       />
     </article>
   );

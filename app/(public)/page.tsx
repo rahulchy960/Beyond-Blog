@@ -1,71 +1,49 @@
 import Link from "next/link";
-import { ArrowRightIcon } from "lucide-react";
-import { CONTENT_TYPE, type ContentType } from "@/lib/content/enums";
+import { ArrowRightIcon, SparklesIcon } from "lucide-react";
 import { SiteContainer } from "@/components/layout/site-container";
-import { buttonVariants } from "@/lib/ui/button-variants";
-import { getServerCaller } from "@/server/api/caller";
+import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { FeaturedContentCard } from "@/components/content/featured-content-card";
 import { ContentCard } from "@/components/content/content-card";
 import { PublicCourseCard } from "@/components/course/public-course-card";
-import { SectionHeader } from "@/components/ui/section-header";
-import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
-import { EmptyState } from "@/components/ui/empty-state";
+import { PublicQuizCard } from "@/components/quiz/public-quiz-card";
+import { DiscoverySection } from "@/components/discovery/discovery-section";
+import { GlobalSearchInput } from "@/components/discovery/global-search-input";
+import { SearchResultCard } from "@/components/discovery/search-result-card";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
-
-type HomeEntry = {
-  type: ContentType;
-  entry: {
-    id: string;
-    title: string;
-    slug: string;
-    summary: string | null;
-    publishedAt: Date | null;
-    category: { name: string; slug: string } | null;
-    coverImage: { url: string; altText: string | null } | null;
-    tags: Array<{ tag: { name: string; slug: string } }>;
-  };
-};
-
-function getEntryDate(value: Date | null) {
-  return value ? new Date(value).getTime() : 0;
-}
+import { getServerCaller } from "@/server/api/caller";
+import { type DiscoveryResultItem } from "@/types/discovery";
 
 export default async function HomePage() {
   const caller = await getServerCaller();
-  const [journals, articles, projects, courses] = await Promise.all([
-    caller.content.listPublished({ type: CONTENT_TYPE.JOURNAL, limit: 4 }),
-    caller.content.listPublished({ type: CONTENT_TYPE.ARTICLE, limit: 4 }),
-    caller.content.listPublished({ type: CONTENT_TYPE.PROJECT, limit: 4 }),
-    caller.course.listPublished({ limit: 3, featuredOnly: true }),
-  ]);
+  const home = await caller.discovery.homepageSections({
+    featuredLimit: 4,
+    recentLimit: 10,
+  });
 
-  const latest = [
-    ...journals.map((entry) => ({ type: CONTENT_TYPE.JOURNAL, entry }) satisfies HomeEntry),
-    ...articles.map((entry) => ({ type: CONTENT_TYPE.ARTICLE, entry }) satisfies HomeEntry),
-    ...projects.map((entry) => ({ type: CONTENT_TYPE.PROJECT, entry }) satisfies HomeEntry),
-  ].sort((a, b) => getEntryDate(b.entry.publishedAt) - getEntryDate(a.entry.publishedAt));
-
-  const featured = latest[0] ?? null;
-  const highlights = latest.slice(1, 7);
+  const featuredLead = home.featuredContent[0] ?? null;
+  const featuredRest = home.featuredContent.slice(1);
 
   return (
     <div className="py-10 md:py-14">
       <SiteContainer className="space-y-16 md:space-y-20">
         <AnimatedPageWrapper>
           <section className="surface-panel-strong relative overflow-hidden px-6 py-8 md:px-9 md:py-10">
-            <div className="grid gap-10 lg:grid-cols-[1.35fr_0.65fr]">
-              <div className="space-y-6">
-                <p className="meta-kicker">Beyond Blog</p>
+            <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="space-y-5">
+                <p className="meta-kicker">Beyond Blog Discovery</p>
                 <h1 className="max-w-4xl text-4xl leading-tight font-semibold tracking-tight md:text-6xl">
-                  Publishing journals, articles, projects, and structured courses with long-term editorial clarity.
+                  Editorial publishing and open learning, discoverable in one place.
                 </h1>
                 <p className="max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
-                  Public readers can browse every published piece openly. A single protected admin console powers
-                  drafting, publishing, and long-term content stewardship.
+                  Browse journals, articles, projects, courses, and quizzes with no reader sign-in. Search, filter,
+                  and follow curated pathways from the same editorial surface.
                 </p>
+                <GlobalSearchInput className="max-w-3xl" />
                 <div className="flex flex-wrap gap-2.5">
-                  <Link href="/articles" className={buttonVariants({ size: "lg" })}>
-                    Explore published work
+                  <Link href="/journals" className={buttonVariants({ size: "lg" })}>
+                    Explore publications
                     <ArrowRightIcon className="size-4" />
                   </Link>
                   <Link href="/courses" className={buttonVariants({ variant: "outline", size: "lg" })}>
@@ -74,69 +52,118 @@ export default async function HomePage() {
                 </div>
               </div>
 
-              <aside className="space-y-4">
-                <div className="surface-inset px-4 py-4">
-                  <p className="meta-kicker">Publication Inventory</p>
-                  <div className="mt-3 grid gap-1.5 text-sm">
-                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2"><span>Journals</span><strong>{journals.length}</strong></div>
-                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2"><span>Articles</span><strong>{articles.length}</strong></div>
-                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2"><span>Projects</span><strong>{projects.length}</strong></div>
-                    <div className="flex items-center justify-between rounded-md bg-muted/45 px-3 py-2"><span>Featured Courses</span><strong>{courses.length}</strong></div>
+              <aside className="space-y-3">
+                <div className="surface-inset p-4">
+                  <p className="meta-kicker">Curated Topics</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {home.discoveryCategories.map((category) => (
+                      <Link key={category.id} href={`/categories/${category.slug}`}>
+                        <Badge variant="secondary">
+                          {category.name} ({category.count})
+                        </Badge>
+                      </Link>
+                    ))}
                   </div>
                 </div>
-                <p className="text-sm leading-7 text-muted-foreground">
-                  Structured for one editor and open audiences: no login gates for readers, no multi-admin drift.
-                </p>
+                <div className="surface-inset p-4">
+                  <p className="meta-kicker">Popular Tags</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {home.discoveryTags.map((tag) => (
+                      <Link key={tag.id} href={`/tags/${tag.slug}`}>
+                        <Badge variant="outline">#{tag.name}</Badge>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               </aside>
             </div>
           </section>
         </AnimatedPageWrapper>
 
-        {featured ? (
-          <AnimatedPageWrapper delay={0.05} className="space-y-5">
-            <SectionHeader eyebrow="Featured" title="Latest Editorial Highlight" description="A curated spotlight from the most recent published work." />
-            <FeaturedContentCard type={featured.type} item={featured.entry} />
+        {featuredLead ? (
+          <AnimatedPageWrapper delay={0.04} className="space-y-5">
+            <DiscoverySection
+              eyebrow="Editorial Spotlight"
+              title="Featured Publication"
+              description="A highlighted piece from the Beyond Blog editorial stream."
+              actions={
+                <Link href="/search?scope=ALL" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "hidden sm:inline-flex")}>
+                  Open global search
+                </Link>
+              }
+            >
+              <FeaturedContentCard type={featuredLead.type} item={featuredLead} />
+              {featuredRest.length > 0 ? (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {featuredRest.map((item) => (
+                    <ContentCard key={item.id} type={item.type} item={item} />
+                  ))}
+                </div>
+              ) : null}
+            </DiscoverySection>
           </AnimatedPageWrapper>
         ) : null}
 
-        <AnimatedPageWrapper delay={0.08} className="space-y-6">
-          <SectionHeader
-            eyebrow="Discover"
-            title="Recent Publications"
-            description="Fresh journals, articles, and projects from the Beyond Blog editorial stream."
-            className="border-b border-border/70 pb-4"
-            actions={
-              <Link href="/journals" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "hidden sm:inline-flex")}>
-                Browse all journals
-              </Link>
-            }
-          />
-          {highlights.length === 0 ? (
-            <EmptyState
-              title="No publications available yet"
-              description="Publish your first journal, article, or project from the admin workspace to populate the homepage."
-            />
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {highlights.map((item) => (
-                <ContentCard key={item.entry.id} type={item.type} item={item.entry} />
-              ))}
-            </div>
-          )}
-        </AnimatedPageWrapper>
-
-        {courses.length > 0 ? (
-          <AnimatedPageWrapper delay={0.1} className="space-y-6">
-            <SectionHeader
+        {home.featuredCourses.length > 0 ? (
+          <AnimatedPageWrapper delay={0.06}>
+            <DiscoverySection
               eyebrow="Courses"
-              title="Structured Learning Paths"
-              description="Programming-style modules and lessons, published for open learners."
-            />
-            <div className="grid gap-4">
-              {courses.map((course) => (
-                <PublicCourseCard key={course.id} course={course} />
-              ))}
-            </div>
+              title="Featured Learning Paths"
+              description="Structured modules for readers who want deeper skill progression."
+              actions={
+                <Link href="/courses" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "hidden sm:inline-flex")}>
+                  View all courses
+                </Link>
+              }
+            >
+              <div className="grid gap-4">
+                {home.featuredCourses.map((course) => (
+                  <PublicCourseCard key={course.id} course={course} />
+                ))}
+              </div>
+            </DiscoverySection>
+          </AnimatedPageWrapper>
+        ) : null}
+
+        {home.featuredQuizzes.length > 0 ? (
+          <AnimatedPageWrapper delay={0.08}>
+            <DiscoverySection
+              eyebrow="Assessments"
+              title="Featured Public Quizzes"
+              description="Open quizzes for quick checks and guided practice."
+            >
+              <div className="grid gap-4">
+                {home.featuredQuizzes.map((quiz) => (
+                  <PublicQuizCard key={quiz.id} quiz={quiz} />
+                ))}
+              </div>
+            </DiscoverySection>
+          </AnimatedPageWrapper>
+        ) : null}
+
+        {home.recentMixed.length > 0 ? (
+          <AnimatedPageWrapper delay={0.1}>
+            <DiscoverySection
+              eyebrow="Fresh"
+              title="Recent Across Beyond Blog"
+              description="Newest releases across editorial publications, courses, and quizzes."
+            >
+              <div className="grid gap-3">
+                {home.recentMixed.slice(0, 8).map((item) => (
+                  <SearchResultCard
+                    key={`${item.type}-${item.id}`}
+                    item={item as DiscoveryResultItem}
+                    className="surface-panel"
+                  />
+                ))}
+              </div>
+              <div className="pt-2">
+                <Link href="/search?scope=ALL" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                  <SparklesIcon className="size-4" />
+                  Explore all discovery results
+                </Link>
+              </div>
+            </DiscoverySection>
           </AnimatedPageWrapper>
         ) : null}
       </SiteContainer>

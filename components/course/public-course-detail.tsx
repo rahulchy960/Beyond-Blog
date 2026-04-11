@@ -5,8 +5,10 @@ import { Clock3Icon, ExternalLinkIcon, Layers3Icon, SparklesIcon } from "lucide-
 import { INTERACTION_TARGET_TYPE } from "@/lib/content/enums";
 import { courseDifficultyLabels, courseLessonTypeLabels } from "@/lib/course/constants";
 import { CommentThread } from "@/components/interaction/comment-thread";
+import { RelatedContentSection } from "@/components/discovery/related-content-section";
 import { Badge } from "@/components/ui/badge";
 import { RichTextRenderer } from "@/components/content/rich-text-renderer";
+import { type DiscoveryResultItem } from "@/types/discovery";
 
 type PublicCourseDetailProps = {
   course: {
@@ -72,6 +74,7 @@ type PublicCourseDetailProps = {
       isPreview: boolean;
     }>;
   };
+  relatedItems?: DiscoveryResultItem[];
 };
 
 function CourseLessonBlock({
@@ -133,7 +136,7 @@ function CourseLessonBlock({
   );
 }
 
-export function PublicCourseDetail({ course }: PublicCourseDetailProps) {
+export function PublicCourseDetail({ course, relatedItems = [] }: PublicCourseDetailProps) {
   const coverUrl = course.coverImage?.thumbnailUrl ?? course.coverImage?.url ?? null;
 
   return (
@@ -188,6 +191,12 @@ export function PublicCourseDetail({ course }: PublicCourseDetailProps) {
         targetType={INTERACTION_TARGET_TYPE.COURSE}
         targetId={course.id}
         title="Course discussion"
+      />
+
+      <RelatedContentSection
+        items={relatedItems}
+        title="Related Learning"
+        description="More courses, quizzes, and publications connected to this learning track."
       />
     </article>
   );

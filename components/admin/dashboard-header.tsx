@@ -23,6 +23,8 @@ const adminQuickLinks = [
   { label: "Projects", href: "/admin/projects", title: "Manage projects" },
   { label: "Courses", href: "/admin/courses", title: "Manage courses" },
   { label: "Quizzes", href: "/admin/quizzes", title: "Manage quizzes" },
+  { label: "Categories", href: "/admin/categories", title: "Manage categories" },
+  { label: "Tags", href: "/admin/tags", title: "Manage tags" },
   { label: "Footer Edit", href: "/admin/settings/profile", title: "Edit public footer profile content" },
 ] as const;
 

@@ -56,6 +56,7 @@ export async function PublicFooter() {
               : `${platformName} © ${year}`}
           </p>
           <div className="flex items-center gap-5 text-[0.82rem] md:justify-end">
+            <Link href="/search" className="hover:text-foreground">Search</Link>
             <Link href="/journals" className="hover:text-foreground">Journals</Link>
             <Link href="/articles" className="hover:text-foreground">Articles</Link>
             <Link href="/projects" className="hover:text-foreground">Projects</Link>
