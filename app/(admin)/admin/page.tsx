@@ -64,7 +64,7 @@ export default async function AdminDashboardPage() {
                   <PlusIcon className="size-4" />
                   New course
                 </Link>
-                <Link href="/admin/quizzes" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                <Link href="/admin/quizzes/new" className={buttonVariants({ variant: "outline", size: "sm" })}>
                   <PlusIcon className="size-4" />
                   New quiz
                 </Link>

@@ -34,6 +34,11 @@ enum QuizStatus {
   CLOSED
 }
 
+enum QuizQuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+}
+
 enum CommentStatus {
   PENDING
   VISIBLE
@@ -190,6 +195,7 @@ model MediaAsset {
   content            Content?       @relation("ContentMediaAssets", fields: [contentId], references: [id], onDelete: SetNull)
   coverForContents   Content[]      @relation("ContentCoverImage")
   coverForCourses    Course[]       @relation("CourseCoverImage")
+  coverForQuizzes    Quiz[]         @relation("QuizCoverImage")
   courseLessonMedia  CourseLesson[] @relation("CourseLessonMedia")
   adminProfileImages AdminProfile[] @relation("AdminProfileImage")
   uploadedByAdmin    AdminUser?     @relation("AdminUploadedMedia", fields: [uploadedByAdminId], references: [id], onDelete: SetNull)
@@ -263,23 +269,35 @@ model Quiz {
   slug                     String     @unique
   description              String?    @db.Text
   status                   QuizStatus @default(DRAFT)
+  isFeatured               Boolean    @default(false)
   showAnswersAfterSubmit   Boolean    @default(true)
   allowMultipleAttempts    Boolean    @default(true)
-  timeLimitSeconds         Int?
+  timeLimitMinutes         Int?
   passingScore             Int?
   contentId                String?
+  courseId                 String?
+  courseLessonId           String?
+  coverImageId             String?
+  seoTitle                 String?
+  seoDescription           String?    @db.Text
   createdByAdminId         String
   publishedAt              DateTime?
   createdAt                DateTime   @default(now())
   updatedAt                DateTime   @updatedAt
 
   content        Content?       @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  course         Course?        @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  courseLesson   CourseLesson?  @relation(fields: [courseLessonId], references: [id], onDelete: SetNull)
+  coverImage     MediaAsset?    @relation("QuizCoverImage", fields: [coverImageId], references: [id], onDelete: SetNull)
   createdByAdmin AdminUser      @relation("QuizCreatedByAdmin", fields: [createdByAdminId], references: [id], onDelete: Restrict)
   questions      QuizQuestion[]
   attempts       QuizAttempt[]
 
   @@index([status, publishedAt])
+  @@index([isFeatured, status, publishedAt])
   @@index([contentId])
+  @@index([courseId])
+  @@index([courseLessonId])
   @@index([createdByAdminId, createdAt])
 }
 
@@ -288,6 +306,7 @@ model QuizQuestion {
   quizId                  String
   questionText            String   @db.Text
   position                Int
+  questionType            QuizQuestionType @default(SINGLE_CHOICE)
   explanation             String?  @db.Text
   points                  Int      @default(1)
   allowMultipleSelections Boolean  @default(false)
@@ -378,6 +397,7 @@ model Course {
   lessons        CourseLesson[]
   comments       Comment[]
   likes          ContentLike[]
+  quizzes        Quiz[]
 
   @@index([status, publishedAt])
   @@index([isFeatured, status])
@@ -424,6 +444,7 @@ model CourseLesson {
   mediaAsset MediaAsset?   @relation("CourseLessonMedia", fields: [mediaAssetId], references: [id], onDelete: SetNull)
   comments   Comment[]
   likes      ContentLike[]
+  quizzes    Quiz[]
 
   @@unique([courseId, slug])
   @@index([courseId, sectionId, order])

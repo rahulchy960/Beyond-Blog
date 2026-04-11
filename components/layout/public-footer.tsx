@@ -60,6 +60,7 @@ export async function PublicFooter() {
             <Link href="/articles" className="hover:text-foreground">Articles</Link>
             <Link href="/projects" className="hover:text-foreground">Projects</Link>
             <Link href="/courses" className="hover:text-foreground">Courses</Link>
+            <Link href="/quizzes" className="hover:text-foreground">Quizzes</Link>
           </div>
         </div>
       </SiteContainer>

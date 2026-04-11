@@ -7,6 +7,7 @@ import {
   CheckCircle2Icon,
   ClipboardEditIcon,
   GraduationCapIcon,
+  ListChecksIcon,
   MessageSquareIcon,
   SparklesIcon,
   ThumbsUpIcon,
@@ -25,6 +26,7 @@ const METRIC_ICONS = [
   MessageSquareIcon,
   TimerResetIcon,
   ThumbsUpIcon,
+  ListChecksIcon,
   SparklesIcon,
 ] as const;
 

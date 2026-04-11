@@ -15,6 +15,7 @@ const PUBLIC_NAV = [
   { label: "Articles", href: "/articles" },
   { label: "Projects", href: "/projects" },
   { label: "Courses", href: "/courses" },
+  { label: "Quizzes", href: "/quizzes" },
 ];
 
 function getInitials(label: string) {

@@ -1,4 +1,13 @@
-import type { Comment, Content, ContentLike, Course, CourseLesson, MediaAsset } from "@prisma/client";
+import type {
+  Comment,
+  Content,
+  ContentLike,
+  Course,
+  CourseLesson,
+  MediaAsset,
+  Quiz,
+  QuizQuestion,
+} from "@prisma/client";
 
 export type ContentType = Content["type"];
 export type PublishStatus = Content["publishStatus"];
@@ -6,6 +15,8 @@ export type MediaType = MediaAsset["type"];
 export type CourseStatus = Course["status"];
 export type CourseLessonItemType = CourseLesson["itemType"];
 export type CourseDifficultyLevel = Exclude<Course["difficultyLevel"], null>;
+export type QuizStatus = Quiz["status"];
+export type QuizQuestionType = QuizQuestion["questionType"];
 export type CommentStatus = Comment["status"];
 export type InteractionTargetType = ContentLike["targetType"];
 
@@ -44,6 +55,17 @@ export const COURSE_DIFFICULTY_LEVEL: Record<CourseDifficultyLevel, CourseDiffic
   BEGINNER: "BEGINNER",
   INTERMEDIATE: "INTERMEDIATE",
   ADVANCED: "ADVANCED",
+};
+
+export const QUIZ_STATUS: Record<QuizStatus, QuizStatus> = {
+  DRAFT: "DRAFT",
+  PUBLISHED: "PUBLISHED",
+  CLOSED: "CLOSED",
+};
+
+export const QUIZ_QUESTION_TYPE: Record<QuizQuestionType, QuizQuestionType> = {
+  SINGLE_CHOICE: "SINGLE_CHOICE",
+  MULTIPLE_CHOICE: "MULTIPLE_CHOICE",
 };
 
 export const COMMENT_STATUS: Record<CommentStatus, CommentStatus> = {
@@ -94,6 +116,17 @@ export const COURSE_DIFFICULTY_LEVELS = [
   COURSE_DIFFICULTY_LEVEL.BEGINNER,
   COURSE_DIFFICULTY_LEVEL.INTERMEDIATE,
   COURSE_DIFFICULTY_LEVEL.ADVANCED,
+] as const;
+
+export const QUIZ_STATUSES = [
+  QUIZ_STATUS.DRAFT,
+  QUIZ_STATUS.PUBLISHED,
+  QUIZ_STATUS.CLOSED,
+] as const;
+
+export const QUIZ_QUESTION_TYPES = [
+  QUIZ_QUESTION_TYPE.SINGLE_CHOICE,
+  QUIZ_QUESTION_TYPE.MULTIPLE_CHOICE,
 ] as const;
 
 export const COMMENT_STATUSES = [

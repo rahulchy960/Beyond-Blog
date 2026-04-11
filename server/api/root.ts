@@ -7,6 +7,7 @@ import {
   mediaRouter,
   profileRouter,
   publicRouter,
+  quizRouter,
 } from "@/server/api/routers";
 
 export const appRouter = createTRPCRouter({
@@ -17,6 +18,7 @@ export const appRouter = createTRPCRouter({
   interaction: interactionRouter,
   media: mediaRouter,
   profile: profileRouter,
+  quiz: quizRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -113,6 +113,17 @@ export const adminRouter = createTRPCRouter({
 
     const pendingSupported = await hasPendingCommentStatus();
 
+    const safeQuizCount = async () => {
+      try {
+        return await ctx.db.quiz.count();
+      } catch (error) {
+        if (isLegacyInteractionSchemaError(error)) {
+          return 0;
+        }
+        throw error;
+      }
+    };
+
     const [
       totalContent,
       publishedContent,
@@ -120,6 +131,7 @@ export const adminRouter = createTRPCRouter({
       totalVisibleComments,
       pendingComments,
       totalQuizAttempts,
+      totalQuizzes,
       totalCourses,
       totalLikes,
     ] =
@@ -130,6 +142,7 @@ export const adminRouter = createTRPCRouter({
         safeCommentCount(COMMENT_STATUS.VISIBLE, pendingSupported),
         safeCommentCount(COMMENT_STATUS.PENDING, pendingSupported),
         ctx.db.quizAttempt.count(),
+        safeQuizCount(),
         safeCourseCount(),
         safeLikeCount(),
       ]);
@@ -174,6 +187,11 @@ export const adminRouter = createTRPCRouter({
         title: "Total Quiz Attempts",
         value: totalQuizAttempts.toLocaleString(),
         description: "Guest quiz submissions",
+      },
+      {
+        title: "Total Quizzes",
+        value: totalQuizzes.toLocaleString(),
+        description: "Draft, published, and closed quizzes",
       },
     ];
   }),

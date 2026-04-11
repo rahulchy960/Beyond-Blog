@@ -5,4 +5,5 @@ export { interactionRouter } from "@/server/api/routers/interaction";
 export { mediaRouter } from "@/server/api/routers/media";
 export { profileRouter } from "@/server/api/routers/profile";
 export { publicRouter } from "@/server/api/routers/public";
+export { quizRouter } from "@/server/api/routers/quiz";
 

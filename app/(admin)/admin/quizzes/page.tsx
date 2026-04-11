@@ -1,10 +1,5 @@
-import { AdminSectionPlaceholder } from "@/components/admin/admin-section-placeholder";
+import { AdminQuizListScreen } from "@/components/quiz/admin-quiz-list-screen";
 
 export default function AdminQuizzesPage() {
-  return (
-    <AdminSectionPlaceholder
-      title="Quizzes"
-      description="Build public quizzes, questions, and answer keys with attempt analytics."
-    />
-  );
+  return <AdminQuizListScreen />;
 }
