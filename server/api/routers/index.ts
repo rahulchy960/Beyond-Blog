@@ -1,4 +1,5 @@
 export { adminRouter } from "@/server/api/routers/admin";
+export { analyticsRouter } from "@/server/api/routers/analytics";
 export { contentRouter } from "@/server/api/routers/content";
 export { courseRouter } from "@/server/api/routers/course";
 export { discoveryRouter } from "@/server/api/routers/discovery";

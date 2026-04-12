@@ -1,6 +1,7 @@
 import { createTRPCRouter } from "@/server/api/trpc";
 import {
   adminRouter,
+  analyticsRouter,
   contentRouter,
   courseRouter,
   discoveryRouter,
@@ -14,6 +15,7 @@ import {
 export const appRouter = createTRPCRouter({
   public: publicRouter,
   admin: adminRouter,
+  analytics: analyticsRouter,
   content: contentRouter,
   course: courseRouter,
   discovery: discoveryRouter,

@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { COMMENT_STATUS, type CommentStatus } from "@/lib/content/enums";
 import { createTRPCRouter, adminProcedure } from "@/server/api/trpc";
 import { findAdminById, updateAdminImageUrlById } from "@/lib/auth/admin-repository";
+import { createAuditLog } from "@/server/audit/log";
 
 const updateAdminAvatarInputSchema = z.object({
   imageUrl: z.string().trim().url().max(2000).optional().nullable(),
@@ -48,7 +49,18 @@ export const adminRouter = createTRPCRouter({
     };
 
     const isLegacyInteractionSchemaError = (error: unknown) => {
-      const message = String(error ?? "");
+      const message =
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof (error as { message?: unknown }).message === "string"
+          ? (error as { message: string }).message
+          : String(error ?? "");
+      const code =
+        typeof error === "object" && error !== null && "code" in error
+          ? String((error as { code?: unknown }).code ?? "")
+          : "";
+
       if (message.includes('invalid input value for enum "CommentStatus"')) {
         return true;
       }
@@ -57,6 +69,9 @@ export const adminRouter = createTRPCRouter({
         message.includes("The column `(not available)` does not exist") ||
         (message.includes("column") && message.includes("does not exist"))
       ) {
+        return true;
+      }
+      if (code === "P2021" || code === "P2022" || code === "P2010") {
         return true;
       }
 
@@ -208,6 +223,16 @@ export const adminRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const normalized = input.imageUrl?.trim() ? input.imageUrl.trim() : null;
       const updated = await updateAdminImageUrlById(ctx.adminUser.id, normalized);
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "admin.avatar.update",
+        entityType: "ADMIN_USER",
+        entityId: ctx.adminUser.id,
+        metadata: {
+          imageUrl: updated.imageUrl,
+        },
+      });
 
       return {
         id: updated.id,

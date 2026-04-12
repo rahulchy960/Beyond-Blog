@@ -30,6 +30,7 @@ import {
   updateCourseStatusInputSchema,
 } from "@/lib/course/schemas";
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
+import { createAuditLog } from "@/server/audit/log";
 
 function isMissingCourseTableError(error: unknown) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -426,6 +427,18 @@ export const courseRouter = createTRPCRouter({
       include: adminCourseInclude,
     });
 
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "course.create",
+      entityType: "COURSE",
+      entityId: created.id,
+      metadata: {
+        title: created.title,
+        status: created.status,
+      },
+    });
+
     return normalizeCoursePayload(created);
   }),
 
@@ -488,12 +501,43 @@ export const courseRouter = createTRPCRouter({
       include: adminCourseInclude,
     });
 
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "course.update",
+      entityType: "COURSE",
+      entityId: updated.id,
+      metadata: {
+        title: updated.title,
+        status: updated.status,
+      },
+    });
+
     return normalizeCoursePayload(updated);
   }),
 
   delete: adminProcedure.input(deleteCourseInputSchema).mutation(async ({ ctx, input }) => {
+    const existing = await ctx.db.course.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+
     await ctx.db.course.delete({
       where: { id: input.id },
+    });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "course.delete",
+      entityType: "COURSE",
+      entityId: input.id,
+      metadata: {
+        title: existing?.title ?? null,
+      },
     });
 
     return { id: input.id };
@@ -575,7 +619,7 @@ export const courseRouter = createTRPCRouter({
   }),
 
   publish: adminProcedure.input(updateCourseStatusInputSchema).mutation(async ({ ctx, input }) => {
-    return ctx.db.course.update({
+    const updated = await ctx.db.course.update({
       where: { id: input.id },
       data: {
         status: COURSE_STATUS.PUBLISHED,
@@ -586,10 +630,23 @@ export const courseRouter = createTRPCRouter({
         status: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "course.publish",
+      entityType: "COURSE",
+      entityId: updated.id,
+      metadata: {
+        status: updated.status,
+      },
+    });
+
+    return updated;
   }),
 
   unpublish: adminProcedure.input(updateCourseStatusInputSchema).mutation(async ({ ctx, input }) => {
-    return ctx.db.course.update({
+    const updated = await ctx.db.course.update({
       where: { id: input.id },
       data: {
         status: COURSE_STATUS.DRAFT,
@@ -600,10 +657,23 @@ export const courseRouter = createTRPCRouter({
         status: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "course.move_to_draft",
+      entityType: "COURSE",
+      entityId: updated.id,
+      metadata: {
+        status: updated.status,
+      },
+    });
+
+    return updated;
   }),
 
   archive: adminProcedure.input(updateCourseStatusInputSchema).mutation(async ({ ctx, input }) => {
-    return ctx.db.course.update({
+    const updated = await ctx.db.course.update({
       where: { id: input.id },
       data: {
         status: COURSE_STATUS.ARCHIVED,
@@ -613,6 +683,19 @@ export const courseRouter = createTRPCRouter({
         status: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "course.archive",
+      entityType: "COURSE",
+      entityId: updated.id,
+      metadata: {
+        status: updated.status,
+      },
+    });
+
+    return updated;
   }),
 
   toggleFeatured: adminProcedure
@@ -630,7 +713,7 @@ export const courseRouter = createTRPCRouter({
         });
       }
 
-      return ctx.db.course.update({
+      const updated = await ctx.db.course.update({
         where: { id: input.id },
         data: {
           isFeatured: input.value ?? !current.isFeatured,
@@ -640,6 +723,19 @@ export const courseRouter = createTRPCRouter({
           isFeatured: true,
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "course.toggle_featured",
+        entityType: "COURSE",
+        entityId: updated.id,
+        metadata: {
+          isFeatured: updated.isFeatured,
+        },
+      });
+
+      return updated;
     }),
 
   createSection: adminProcedure
@@ -659,7 +755,7 @@ export const courseRouter = createTRPCRouter({
 
       const order = await getNextSectionOrder(ctx.db, input.courseId);
 
-      return ctx.db.courseSection.create({
+      const section = await ctx.db.courseSection.create({
         data: {
           courseId: input.courseId,
           title: input.title.trim(),
@@ -667,23 +763,60 @@ export const courseRouter = createTRPCRouter({
           order,
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "course.section.create",
+        entityType: "COURSE_SECTION",
+        entityId: section.id,
+        metadata: {
+          courseId: input.courseId,
+          title: section.title,
+        },
+      });
+
+      return section;
     }),
 
   updateSection: adminProcedure
     .input(updateCourseSectionInputSchema)
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.courseSection.update({
+      const section = await ctx.db.courseSection.update({
         where: { id: input.id },
         data: {
           title: input.title.trim(),
           description: normalizeOptionalText(input.description),
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "course.section.update",
+        entityType: "COURSE_SECTION",
+        entityId: section.id,
+        metadata: {
+          courseId: section.courseId,
+          title: section.title,
+        },
+      });
+
+      return section;
     }),
 
   deleteSection: adminProcedure
     .input(deleteCourseSectionInputSchema)
     .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.courseSection.findUnique({
+        where: { id: input.id },
+        select: {
+          id: true,
+          courseId: true,
+          title: true,
+        },
+      });
+
       await ctx.db.courseLesson.updateMany({
         where: {
           sectionId: input.id,
@@ -695,6 +828,18 @@ export const courseRouter = createTRPCRouter({
 
       await ctx.db.courseSection.delete({
         where: { id: input.id },
+      });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "course.section.delete",
+        entityType: "COURSE_SECTION",
+        entityId: input.id,
+        metadata: {
+          courseId: existing?.courseId ?? null,
+          title: existing?.title ?? null,
+        },
       });
 
       return { id: input.id };
@@ -738,6 +883,17 @@ export const courseRouter = createTRPCRouter({
           }),
         ),
       );
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "course.section.reorder",
+        entityType: "COURSE",
+        entityId: input.courseId,
+        metadata: {
+          sectionIds: input.sectionIds,
+        },
+      });
 
       return { success: true };
     }),
@@ -784,7 +940,7 @@ export const courseRouter = createTRPCRouter({
 
       const order = await getNextLessonOrder(ctx.db, input.courseId, sectionId);
 
-      return ctx.db.courseLesson.create({
+      const lesson = await ctx.db.courseLesson.create({
         data: {
           courseId: input.courseId,
           sectionId,
@@ -802,6 +958,21 @@ export const courseRouter = createTRPCRouter({
           publishedAt: input.isPublished ? new Date() : null,
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "course.lesson.create",
+        entityType: "COURSE_LESSON",
+        entityId: lesson.id,
+        metadata: {
+          courseId: input.courseId,
+          title: lesson.title,
+          itemType: lesson.itemType,
+        },
+      });
+
+      return lesson;
     }),
 
   updateLesson: adminProcedure
@@ -850,7 +1021,7 @@ export const courseRouter = createTRPCRouter({
           ? normalizeRichTextDocument(input.bodyJson)
           : undefined;
 
-      return ctx.db.courseLesson.update({
+      const lesson = await ctx.db.courseLesson.update({
         where: { id: input.id },
         data: {
           courseId: input.courseId,
@@ -868,13 +1039,51 @@ export const courseRouter = createTRPCRouter({
           publishedAt: input.isPublished ? existing.publishedAt ?? new Date() : null,
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "course.lesson.update",
+        entityType: "COURSE_LESSON",
+        entityId: lesson.id,
+        metadata: {
+          courseId: lesson.courseId,
+          title: lesson.title,
+          itemType: lesson.itemType,
+        },
+      });
+
+      return lesson;
     }),
 
   deleteLesson: adminProcedure
     .input(deleteCourseLessonInputSchema)
     .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.courseLesson.findUnique({
+        where: { id: input.id },
+        select: {
+          id: true,
+          courseId: true,
+          title: true,
+          itemType: true,
+        },
+      });
+
       await ctx.db.courseLesson.delete({
         where: { id: input.id },
+      });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "course.lesson.delete",
+        entityType: "COURSE_LESSON",
+        entityId: input.id,
+        metadata: {
+          courseId: existing?.courseId ?? null,
+          title: existing?.title ?? null,
+          itemType: existing?.itemType ?? null,
+        },
       });
 
       return { id: input.id };
@@ -924,6 +1133,18 @@ export const courseRouter = createTRPCRouter({
         ),
       );
 
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "course.lesson.reorder",
+        entityType: "COURSE",
+        entityId: input.courseId,
+        metadata: {
+          lessonIds: input.lessonIds,
+          sectionId,
+        },
+      });
+
       return { success: true };
     }),
 
@@ -951,7 +1172,7 @@ export const courseRouter = createTRPCRouter({
         itemType: lesson.itemType,
       });
 
-      return ctx.db.courseLesson.update({
+      const updated = await ctx.db.courseLesson.update({
         where: { id: input.lessonId },
         data: {
           mediaAssetId,
@@ -961,12 +1182,25 @@ export const courseRouter = createTRPCRouter({
           mediaAssetId: true,
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "course.lesson.attach_media",
+        entityType: "COURSE_LESSON",
+        entityId: updated.id,
+        metadata: {
+          mediaAssetId: updated.mediaAssetId,
+        },
+      });
+
+      return updated;
     }),
 
   detachLessonMedia: adminProcedure
     .input(detachLessonMediaInputSchema)
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.courseLesson.update({
+      const updated = await ctx.db.courseLesson.update({
         where: { id: input.lessonId },
         data: {
           mediaAssetId: null,
@@ -976,6 +1210,16 @@ export const courseRouter = createTRPCRouter({
           mediaAssetId: true,
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "course.lesson.detach_media",
+        entityType: "COURSE_LESSON",
+        entityId: updated.id,
+      });
+
+      return updated;
     }),
 
   listPublished: publicProcedure

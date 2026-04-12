@@ -17,6 +17,7 @@ import {
   updateContentStatusInputSchema,
 } from "@/lib/content/schemas";
 import { slugifyText } from "@/lib/content/slug";
+import { createAuditLog } from "@/server/audit/log";
 
 const adminContentInclude = {
   category: true,
@@ -252,6 +253,19 @@ export const contentRouter = createTRPCRouter({
       });
     });
 
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "content.create",
+      entityType: "CONTENT",
+      entityId: created.id,
+      metadata: {
+        title: created.title,
+        type: created.type,
+        publishStatus: created.publishStatus,
+      },
+    });
+
     return toAdminContentPayload(created);
   }),
 
@@ -319,12 +333,46 @@ export const contentRouter = createTRPCRouter({
       });
     });
 
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "content.update",
+      entityType: "CONTENT",
+      entityId: updated.id,
+      metadata: {
+        title: updated.title,
+        type: updated.type,
+        publishStatus: updated.publishStatus,
+      },
+    });
+
     return toAdminContentPayload(updated);
   }),
 
   delete: adminProcedure.input(deleteContentInputSchema).mutation(async ({ ctx, input }) => {
+    const existing = await ctx.db.content.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+      },
+    });
+
     await ctx.db.content.delete({
       where: { id: input.id },
+    });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "content.delete",
+      entityType: "CONTENT",
+      entityId: input.id,
+      metadata: {
+        title: existing?.title ?? null,
+        type: existing?.type ?? null,
+      },
     });
 
     return { id: input.id };
@@ -432,7 +480,7 @@ export const contentRouter = createTRPCRouter({
   }),
 
   publish: adminProcedure.input(updateContentStatusInputSchema).mutation(async ({ ctx, input }) => {
-    return ctx.db.content.update({
+    const updated = await ctx.db.content.update({
       where: { id: input.id },
       data: {
         publishStatus: PUBLISH_STATUS.PUBLISHED,
@@ -443,12 +491,25 @@ export const contentRouter = createTRPCRouter({
         publishStatus: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "content.publish",
+      entityType: "CONTENT",
+      entityId: updated.id,
+      metadata: {
+        publishStatus: updated.publishStatus,
+      },
+    });
+
+    return updated;
   }),
 
   unpublish: adminProcedure
     .input(updateContentStatusInputSchema)
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.content.update({
+      const updated = await ctx.db.content.update({
         where: { id: input.id },
         data: {
           publishStatus: PUBLISH_STATUS.DRAFT,
@@ -459,10 +520,23 @@ export const contentRouter = createTRPCRouter({
           publishStatus: true,
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "content.move_to_draft",
+        entityType: "CONTENT",
+        entityId: updated.id,
+        metadata: {
+          publishStatus: updated.publishStatus,
+        },
+      });
+
+      return updated;
     }),
 
   archive: adminProcedure.input(updateContentStatusInputSchema).mutation(async ({ ctx, input }) => {
-    return ctx.db.content.update({
+    const updated = await ctx.db.content.update({
       where: { id: input.id },
       data: {
         publishStatus: PUBLISH_STATUS.ARCHIVED,
@@ -472,6 +546,19 @@ export const contentRouter = createTRPCRouter({
         publishStatus: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "content.archive",
+      entityType: "CONTENT",
+      entityId: updated.id,
+      metadata: {
+        publishStatus: updated.publishStatus,
+      },
+    });
+
+    return updated;
   }),
 
   toggleFeatured: adminProcedure.input(toggleFeaturedInputSchema).mutation(async ({ ctx, input }) => {
@@ -487,7 +574,7 @@ export const contentRouter = createTRPCRouter({
       });
     }
 
-    return ctx.db.content.update({
+    const updated = await ctx.db.content.update({
       where: { id: input.id },
       data: {
         isFeatured: input.value ?? !current.isFeatured,
@@ -497,6 +584,19 @@ export const contentRouter = createTRPCRouter({
         isFeatured: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "content.toggle_featured",
+      entityType: "CONTENT",
+      entityId: updated.id,
+      metadata: {
+        isFeatured: updated.isFeatured,
+      },
+    });
+
+    return updated;
   }),
 
   listCategories: adminProcedure.query(async ({ ctx }) => {
@@ -555,7 +655,7 @@ export const contentRouter = createTRPCRouter({
       });
     }
 
-    return ctx.db.tag.upsert({
+    const tag = await ctx.db.tag.upsert({
       where: { slug },
       update: { name },
       create: { name, slug },
@@ -565,6 +665,20 @@ export const contentRouter = createTRPCRouter({
         slug: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "taxonomy.tag.upsert",
+      entityType: "TAG",
+      entityId: tag.id,
+      metadata: {
+        name: tag.name,
+        slug: tag.slug,
+      },
+    });
+
+    return tag;
   }),
 
   listPublished: publicProcedure.input(listPublicContentInputSchema).query(async ({ ctx, input }) => {

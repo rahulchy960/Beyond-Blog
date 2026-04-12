@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { MEDIA_TYPE } from "@/lib/content/enums";
 import { adminProfileSettingsInputSchema, normalizeOptionalText } from "@/lib/profile/schemas";
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
+import { createAuditLog } from "@/server/audit/log";
 
 async function resolveProfileImageId(args: {
   db: {
@@ -144,6 +145,19 @@ export const profileRouter = createTRPCRouter({
                 altText: true,
               },
             },
+          },
+        });
+
+        await createAuditLog({
+          db: ctx.db,
+          adminUserId: ctx.adminUser.id,
+          action: "settings.profile.update",
+          entityType: "ADMIN_PROFILE",
+          entityId: updated.id,
+          metadata: {
+            fullName: updated.fullName,
+            designation: updated.designation,
+            hasProfileImage: Boolean(updated.profileImageId),
           },
         });
 

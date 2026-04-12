@@ -4,6 +4,7 @@ import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 import { MEDIA_TYPE } from "@/lib/content/enums";
 import { findAdminByClerkUserId } from "@/lib/auth/admin-repository";
+import { createAuditLog } from "@/server/audit/log";
 import { db } from "@/server/db";
 
 const f = createUploadthing();
@@ -82,6 +83,18 @@ export const beyondBlogFileRouter = {
           sizeBytes: true,
         },
       });
+      await createAuditLog({
+        db,
+        adminUserId: metadata.adminUserId,
+        action: "media.upload.image",
+        entityType: "MEDIA_ASSET",
+        entityId: created.id,
+        metadata: {
+          title: created.title,
+          mimeType: created.mimeType,
+          sizeBytes: created.sizeBytes,
+        },
+      });
 
       return {
         mediaId: created.id,
@@ -129,6 +142,18 @@ export const beyondBlogFileRouter = {
           originalFilename: true,
           mimeType: true,
           sizeBytes: true,
+        },
+      });
+      await createAuditLog({
+        db,
+        adminUserId: metadata.adminUserId,
+        action: "media.upload.file",
+        entityType: "MEDIA_ASSET",
+        entityId: created.id,
+        metadata: {
+          title: created.title,
+          mimeType: created.mimeType,
+          sizeBytes: created.sizeBytes,
         },
       });
 

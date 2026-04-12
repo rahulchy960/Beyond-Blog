@@ -27,6 +27,7 @@ import {
 } from "@/lib/discovery/schemas";
 import { slugifyText } from "@/lib/content/slug";
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
+import { createAuditLog } from "@/server/audit/log";
 
 const contentListInclude = {
   category: {
@@ -1113,7 +1114,7 @@ export const discoveryRouter = createTRPCRouter({
     const data = normalizeTagInput(input);
     await assertTagSlugUnique({ db: ctx.db, slug: data.slug });
 
-    return ctx.db.tag.create({
+    const tag = await ctx.db.tag.create({
       data,
       include: {
         _count: {
@@ -1123,6 +1124,20 @@ export const discoveryRouter = createTRPCRouter({
         },
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "taxonomy.tag.create",
+      entityType: "TAG",
+      entityId: tag.id,
+      metadata: {
+        name: tag.name,
+        slug: tag.slug,
+      },
+    });
+
+    return tag;
   }),
 
   updateTag: adminProcedure.input(adminUpdateTagInputSchema).mutation(async ({ ctx, input }) => {
@@ -1140,7 +1155,7 @@ export const discoveryRouter = createTRPCRouter({
     const data = normalizeTagInput(input);
     await assertTagSlugUnique({ db: ctx.db, slug: data.slug, excludeId: input.id });
 
-    return ctx.db.tag.update({
+    const updated = await ctx.db.tag.update({
       where: { id: input.id },
       data,
       include: {
@@ -1151,6 +1166,20 @@ export const discoveryRouter = createTRPCRouter({
         },
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "taxonomy.tag.update",
+      entityType: "TAG",
+      entityId: updated.id,
+      metadata: {
+        name: updated.name,
+        slug: updated.slug,
+      },
+    });
+
+    return updated;
   }),
 
   deleteTag: adminProcedure.input(adminDeleteTagInputSchema).mutation(async ({ ctx, input }) => {
@@ -1181,6 +1210,18 @@ export const discoveryRouter = createTRPCRouter({
 
     await ctx.db.tag.delete({
       where: { id: input.id },
+    });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "taxonomy.tag.delete",
+      entityType: "TAG",
+      entityId: input.id,
+      metadata: {
+        name: current.name,
+        slug: current.slug,
+      },
     });
 
     return { id: input.id };
@@ -1222,7 +1263,7 @@ export const discoveryRouter = createTRPCRouter({
         slug: data.slug,
       });
 
-      return ctx.db.category.create({
+      const category = await ctx.db.category.create({
         data,
         include: {
           _count: {
@@ -1232,6 +1273,20 @@ export const discoveryRouter = createTRPCRouter({
           },
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "taxonomy.category.create",
+        entityType: "CATEGORY",
+        entityId: category.id,
+        metadata: {
+          name: category.name,
+          slug: category.slug,
+        },
+      });
+
+      return category;
     }),
 
   updateCategory: adminProcedure
@@ -1256,7 +1311,7 @@ export const discoveryRouter = createTRPCRouter({
         excludeId: input.id,
       });
 
-      return ctx.db.category.update({
+      const updated = await ctx.db.category.update({
         where: { id: input.id },
         data,
         include: {
@@ -1267,6 +1322,20 @@ export const discoveryRouter = createTRPCRouter({
           },
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "taxonomy.category.update",
+        entityType: "CATEGORY",
+        entityId: updated.id,
+        metadata: {
+          name: updated.name,
+          slug: updated.slug,
+        },
+      });
+
+      return updated;
     }),
 
   deleteCategory: adminProcedure
@@ -1299,6 +1368,18 @@ export const discoveryRouter = createTRPCRouter({
 
       await ctx.db.category.delete({
         where: { id: input.id },
+      });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "taxonomy.category.delete",
+        entityType: "CATEGORY",
+        entityId: input.id,
+        metadata: {
+          name: current.name,
+          slug: current.slug,
+        },
       });
 
       return { id: input.id };

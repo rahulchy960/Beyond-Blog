@@ -68,6 +68,12 @@ export default async function AdminDashboardPage() {
                   <PlusIcon className="size-4" />
                   New quiz
                 </Link>
+                <Link href="/admin/analytics" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                  Analytics insights
+                </Link>
+                <Link href="/admin/audit-logs" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                  Audit log stream
+                </Link>
               </CardContent>
             </Card>
           </div>

@@ -44,6 +44,7 @@ const hasRequiredDelegates = (client: PrismaClient | undefined): client is Prism
     ["contentLike", "count"],
     ["siteSetting", "findUnique"],
     ["quizAttempt", "count"],
+    ["auditLog", "findMany"],
   ];
 
   const target = client as unknown as Record<string, unknown>;

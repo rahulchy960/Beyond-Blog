@@ -18,6 +18,7 @@ type DashboardHeaderProps = {
 };
 
 const adminQuickLinks = [
+  { label: "Analytics", href: "/admin/analytics", title: "Open analytics intelligence" },
   { label: "Journals", href: "/admin/journals", title: "Manage journals" },
   { label: "Articles", href: "/admin/articles", title: "Manage articles" },
   { label: "Projects", href: "/admin/projects", title: "Manage projects" },

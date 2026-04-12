@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { MEDIA_TYPE, QUIZ_QUESTION_TYPE, QUIZ_STATUS } from "@/lib/content/enums";
 import { slugifyText } from "@/lib/content/slug";
@@ -28,10 +28,33 @@ import {
 } from "@/lib/quiz/schemas";
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
 import { getVisitorTokenHash } from "@/lib/interaction/visitor";
+import { createAuditLog } from "@/server/audit/log";
 
 function isMissingQuizSchemaError(error: unknown) {
-  const message = String(error ?? "");
+  const message =
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+      ? (error as { message: string }).message
+      : String(error ?? "");
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code?: unknown }).code ?? "")
+      : "";
   if (message.includes('relation "Quiz" does not exist')) {
+    return true;
+  }
+
+  if (
+    message.includes("does not exist in the current database") ||
+    message.includes("The column `(not available)` does not exist") ||
+    (message.includes("column") && message.includes("does not exist"))
+  ) {
+    return true;
+  }
+
+  if (code === "P2021" || code === "P2022" || code === "P2010") {
     return true;
   }
 
@@ -77,6 +100,57 @@ function isMissingTableError(error: unknown, tableNames: string[]) {
   }
 
   return tableNames.some((tableName) => message.includes(tableName));
+}
+
+let quizReadSchemaState: "unknown" | "ready" | "missing" = "unknown";
+
+async function hasQuizReadSchema(
+  db: Pick<PrismaClient, "$queryRaw">,
+) {
+  if (quizReadSchemaState === "ready") {
+    return true;
+  }
+
+  if (quizReadSchemaState === "missing") {
+    return false;
+  }
+
+  try {
+    const rows = await db.$queryRaw<Array<{ columnName: string }>>`
+      SELECT "column_name" AS "columnName"
+      FROM "information_schema"."columns"
+      WHERE "table_schema" = 'public'
+        AND "table_name" = 'Quiz'
+        AND "column_name" IN (
+          'id',
+          'title',
+          'slug',
+          'description',
+          'status',
+          'isFeatured',
+          'publishedAt',
+          'updatedAt'
+        )
+    `;
+
+    const found = new Set(rows.map((row) => row.columnName));
+    const required = [
+      "id",
+      "title",
+      "slug",
+      "description",
+      "status",
+      "isFeatured",
+      "publishedAt",
+      "updatedAt",
+    ];
+    const ready = required.every((column) => found.has(column));
+    quizReadSchemaState = ready ? "ready" : "missing";
+    return ready;
+  } catch {
+    quizReadSchemaState = "missing";
+    return false;
+  }
 }
 
 async function assertQuizSlugUnique(args: {
@@ -345,7 +419,7 @@ export const quizRouter = createTRPCRouter({
       courseLessonId: input.courseLessonId,
     });
 
-    return ctx.db.quiz.create({
+    const created = await ctx.db.quiz.create({
       data: {
         title: input.title.trim(),
         slug,
@@ -369,6 +443,20 @@ export const quizRouter = createTRPCRouter({
         id: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "quiz.create",
+      entityType: "QUIZ",
+      entityId: created.id,
+      metadata: {
+        title: input.title.trim(),
+        status: input.status,
+      },
+    });
+
+    return created;
   }),
 
   update: adminProcedure.input(updateQuizInputSchema).mutation(async ({ ctx, input }) => {
@@ -412,7 +500,7 @@ export const quizRouter = createTRPCRouter({
       courseLessonId: input.courseLessonId,
     });
 
-    return ctx.db.quiz.update({
+    const updated = await ctx.db.quiz.update({
       where: { id: input.id },
       data: {
         title: input.title.trim(),
@@ -439,17 +527,54 @@ export const quizRouter = createTRPCRouter({
         id: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "quiz.update",
+      entityType: "QUIZ",
+      entityId: updated.id,
+      metadata: {
+        title: input.title.trim(),
+        status: input.status,
+      },
+    });
+
+    return updated;
   }),
 
   delete: adminProcedure.input(deleteQuizInputSchema).mutation(async ({ ctx, input }) => {
+    const existing = await ctx.db.quiz.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+
     await ctx.db.quiz.delete({
       where: { id: input.id },
+    });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "quiz.delete",
+      entityType: "QUIZ",
+      entityId: input.id,
+      metadata: {
+        title: existing?.title ?? null,
+      },
     });
 
     return { id: input.id };
   }),
 
   listForAdmin: adminProcedure.input(listAdminQuizzesInputSchema).query(async ({ ctx, input }) => {
+    if (!(await hasQuizReadSchema(ctx.db))) {
+      return { items: [] };
+    }
+
     const where = {
       ...(input.status ? { status: input.status } : {}),
       ...(input.query
@@ -501,28 +626,40 @@ export const quizRouter = createTRPCRouter({
         },
       });
     } catch (error) {
+      if (isMissingQuizSchemaError(error)) {
+        return { items: [] };
+      }
+
       if (!isQuizIncludeFallbackError(error)) {
         throw error;
       }
 
-      const fallbackItems = await ctx.db.quiz.findMany({
-        where,
-        orderBy,
-        take: input.limit,
-        include: {
-          _count: {
-            select: {
-              questions: true,
-              attempts: true,
+      try {
+        const fallbackItems = await ctx.db.quiz.findMany({
+          where,
+          orderBy,
+          take: input.limit,
+          include: {
+            _count: {
+              select: {
+                questions: true,
+                attempts: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      items = fallbackItems.map((item) => ({
-        ...item,
-        coverImage: null,
-      }));
+        items = fallbackItems.map((item) => ({
+          ...item,
+          coverImage: null,
+        }));
+      } catch (fallbackError) {
+        if (isMissingQuizSchemaError(fallbackError)) {
+          return { items: [] };
+        }
+
+        throw fallbackError;
+      }
     }
 
     return { items };
@@ -599,7 +736,7 @@ export const quizRouter = createTRPCRouter({
   }),
 
   publish: adminProcedure.input(updateQuizStatusInputSchema).mutation(async ({ ctx, input }) => {
-    return ctx.db.quiz.update({
+    const updated = await ctx.db.quiz.update({
       where: { id: input.id },
       data: {
         status: QUIZ_STATUS.PUBLISHED,
@@ -610,10 +747,23 @@ export const quizRouter = createTRPCRouter({
         status: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "quiz.publish",
+      entityType: "QUIZ",
+      entityId: updated.id,
+      metadata: {
+        status: updated.status,
+      },
+    });
+
+    return updated;
   }),
 
   moveToDraft: adminProcedure.input(updateQuizStatusInputSchema).mutation(async ({ ctx, input }) => {
-    return ctx.db.quiz.update({
+    const updated = await ctx.db.quiz.update({
       where: { id: input.id },
       data: {
         status: QUIZ_STATUS.DRAFT,
@@ -624,10 +774,23 @@ export const quizRouter = createTRPCRouter({
         status: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "quiz.move_to_draft",
+      entityType: "QUIZ",
+      entityId: updated.id,
+      metadata: {
+        status: updated.status,
+      },
+    });
+
+    return updated;
   }),
 
   closeQuiz: adminProcedure.input(updateQuizStatusInputSchema).mutation(async ({ ctx, input }) => {
-    return ctx.db.quiz.update({
+    const updated = await ctx.db.quiz.update({
       where: { id: input.id },
       data: {
         status: QUIZ_STATUS.CLOSED,
@@ -637,6 +800,19 @@ export const quizRouter = createTRPCRouter({
         status: true,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "quiz.close",
+      entityType: "QUIZ",
+      entityId: updated.id,
+      metadata: {
+        status: updated.status,
+      },
+    });
+
+    return updated;
   }),
 
   toggleFeatured: adminProcedure
@@ -654,7 +830,7 @@ export const quizRouter = createTRPCRouter({
         });
       }
 
-      return ctx.db.quiz.update({
+      const updated = await ctx.db.quiz.update({
         where: { id: input.id },
         data: {
           isFeatured: input.value ?? !current.isFeatured,
@@ -664,6 +840,19 @@ export const quizRouter = createTRPCRouter({
           isFeatured: true,
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "quiz.toggle_featured",
+        entityType: "QUIZ",
+        entityId: updated.id,
+        metadata: {
+          isFeatured: updated.isFeatured,
+        },
+      });
+
+      return updated;
     }),
 
   createQuestion: adminProcedure
@@ -683,7 +872,7 @@ export const quizRouter = createTRPCRouter({
 
       const position = await getNextQuestionPosition(ctx.db, input.quizId);
 
-      return ctx.db.quizQuestion.create({
+      const question = await ctx.db.quizQuestion.create({
         data: {
           quizId: input.quizId,
           questionText: input.questionText.trim(),
@@ -702,12 +891,26 @@ export const quizRouter = createTRPCRouter({
           },
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "quiz.question.create",
+        entityType: "QUIZ_QUESTION",
+        entityId: question.id,
+        metadata: {
+          quizId: input.quizId,
+          points: question.points,
+        },
+      });
+
+      return question;
     }),
 
   updateQuestion: adminProcedure
     .input(updateQuizQuestionInputSchema)
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.quizQuestion.update({
+      const question = await ctx.db.quizQuestion.update({
         where: { id: input.id },
         data: {
           quizId: input.quizId,
@@ -726,13 +929,46 @@ export const quizRouter = createTRPCRouter({
           },
         },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "quiz.question.update",
+        entityType: "QUIZ_QUESTION",
+        entityId: question.id,
+        metadata: {
+          quizId: input.quizId,
+          points: question.points,
+        },
+      });
+
+      return question;
     }),
 
   deleteQuestion: adminProcedure
     .input(deleteQuizQuestionInputSchema)
     .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.quizQuestion.findUnique({
+        where: { id: input.id },
+        select: {
+          id: true,
+          quizId: true,
+        },
+      });
+
       await ctx.db.quizQuestion.delete({
         where: { id: input.id },
+      });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "quiz.question.delete",
+        entityType: "QUIZ_QUESTION",
+        entityId: input.id,
+        metadata: {
+          quizId: existing?.quizId ?? null,
+        },
       });
 
       return { id: input.id };
@@ -777,6 +1013,17 @@ export const quizRouter = createTRPCRouter({
         ),
       );
 
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "quiz.question.reorder",
+        entityType: "QUIZ",
+        entityId: input.quizId,
+        metadata: {
+          questionIds: input.questionIds,
+        },
+      });
+
       return { success: true };
     }),
 
@@ -810,7 +1057,7 @@ export const quizRouter = createTRPCRouter({
 
     const position = await getNextOptionPosition(ctx.db, input.questionId);
 
-    return ctx.db.quizOption.create({
+    const option = await ctx.db.quizOption.create({
       data: {
         questionId: input.questionId,
         optionText: input.optionText.trim(),
@@ -818,6 +1065,20 @@ export const quizRouter = createTRPCRouter({
         position,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "quiz.option.create",
+      entityType: "QUIZ_OPTION",
+      entityId: option.id,
+      metadata: {
+        questionId: input.questionId,
+        isCorrect: option.isCorrect,
+      },
+    });
+
+    return option;
   }),
 
   updateOption: adminProcedure.input(updateQuizOptionInputSchema).mutation(async ({ ctx, input }) => {
@@ -856,7 +1117,7 @@ export const quizRouter = createTRPCRouter({
       });
     }
 
-    return ctx.db.quizOption.update({
+    const updated = await ctx.db.quizOption.update({
       where: {
         id: input.id,
       },
@@ -866,11 +1127,44 @@ export const quizRouter = createTRPCRouter({
         isCorrect: input.isCorrect,
       },
     });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "quiz.option.update",
+      entityType: "QUIZ_OPTION",
+      entityId: updated.id,
+      metadata: {
+        questionId: updated.questionId,
+        isCorrect: updated.isCorrect,
+      },
+    });
+
+    return updated;
   }),
 
   deleteOption: adminProcedure.input(deleteQuizOptionInputSchema).mutation(async ({ ctx, input }) => {
+    const existing = await ctx.db.quizOption.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        questionId: true,
+      },
+    });
+
     await ctx.db.quizOption.delete({
       where: { id: input.id },
+    });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "quiz.option.delete",
+      entityType: "QUIZ_OPTION",
+      entityId: input.id,
+      metadata: {
+        questionId: existing?.questionId ?? null,
+      },
     });
 
     return { id: input.id };
@@ -910,6 +1204,17 @@ export const quizRouter = createTRPCRouter({
         }),
       ),
     );
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "quiz.option.reorder",
+      entityType: "QUIZ_QUESTION",
+      entityId: input.questionId,
+      metadata: {
+        optionIds: input.optionIds,
+      },
+    });
 
     return { success: true };
   }),
@@ -1082,6 +1387,10 @@ export const quizRouter = createTRPCRouter({
   listPublished: publicProcedure
     .input(listPublishedQuizzesInputSchema)
     .query(async ({ ctx, input }) => {
+      if (!(await hasQuizReadSchema(ctx.db))) {
+        return [];
+      }
+
       try {
         return ctx.db.quiz.findMany({
           where: {
@@ -1122,44 +1431,51 @@ export const quizRouter = createTRPCRouter({
         });
       } catch (error) {
         if (isQuizIncludeFallbackError(error)) {
-          const fallback = await ctx.db.quiz.findMany({
-            where: {
-              status: QUIZ_STATUS.PUBLISHED,
-              ...(input.featuredOnly ? { isFeatured: true } : {}),
-              ...(input.query
-                ? {
-                    OR: [
-                      {
-                        title: {
-                          contains: input.query,
-                          mode: "insensitive",
+          try {
+            const fallback = await ctx.db.quiz.findMany({
+              where: {
+                status: QUIZ_STATUS.PUBLISHED,
+                ...(input.featuredOnly ? { isFeatured: true } : {}),
+                ...(input.query
+                  ? {
+                      OR: [
+                        {
+                          title: {
+                            contains: input.query,
+                            mode: "insensitive",
+                          },
                         },
-                      },
-                      {
-                        description: {
-                          contains: input.query,
-                          mode: "insensitive",
+                        {
+                          description: {
+                            contains: input.query,
+                            mode: "insensitive",
+                          },
                         },
-                      },
-                    ],
-                  }
-                : {}),
-            },
-            orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }, { updatedAt: "desc" }],
-            take: input.limit,
-            include: {
-              _count: {
-                select: {
-                  questions: true,
-                  attempts: true,
+                      ],
+                    }
+                  : {}),
+              },
+              orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }, { updatedAt: "desc" }],
+              take: input.limit,
+              include: {
+                _count: {
+                  select: {
+                    questions: true,
+                    attempts: true,
+                  },
                 },
               },
-            },
-          });
-          return fallback.map((quiz) => ({
-            ...quiz,
-            coverImage: null,
-          }));
+            });
+            return fallback.map((quiz) => ({
+              ...quiz,
+              coverImage: null,
+            }));
+          } catch (fallbackError) {
+            if (isMissingQuizSchemaError(fallbackError)) {
+              return [];
+            }
+            throw fallbackError;
+          }
         }
 
         if (isMissingQuizSchemaError(error)) {
@@ -1172,6 +1488,13 @@ export const quizRouter = createTRPCRouter({
   getPublishedBySlug: publicProcedure
     .input(quizBySlugInputSchema)
     .query(async ({ ctx, input }) => {
+      if (!(await hasQuizReadSchema(ctx.db))) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Quiz not found.",
+        });
+      }
+
       const quiz = await (async () => {
         try {
           return await ctx.db.quiz.findFirst({
@@ -1208,44 +1531,51 @@ export const quizRouter = createTRPCRouter({
           });
         } catch (error) {
           if (isQuizIncludeFallbackError(error)) {
-            const fallbackQuiz = await ctx.db.quiz.findFirst({
-              where: {
-                slug: input.slug,
-                status: {
-                  in: [QUIZ_STATUS.PUBLISHED, QUIZ_STATUS.CLOSED],
+            try {
+              const fallbackQuiz = await ctx.db.quiz.findFirst({
+                where: {
+                  slug: input.slug,
+                  status: {
+                    in: [QUIZ_STATUS.PUBLISHED, QUIZ_STATUS.CLOSED],
+                  },
                 },
-              },
-              include: {
-                questions: {
-                  orderBy: { position: "asc" },
-                  include: {
-                    options: {
-                      orderBy: { position: "asc" },
-                      select: {
-                        id: true,
-                        optionText: true,
-                        position: true,
+                include: {
+                  questions: {
+                    orderBy: { position: "asc" },
+                    include: {
+                      options: {
+                        orderBy: { position: "asc" },
+                        select: {
+                          id: true,
+                          optionText: true,
+                          position: true,
+                        },
                       },
                     },
                   },
-                },
-                _count: {
-                  select: {
-                    questions: true,
-                    attempts: true,
+                  _count: {
+                    select: {
+                      questions: true,
+                      attempts: true,
+                    },
                   },
                 },
-              },
-            });
+              });
 
-            if (!fallbackQuiz) {
-              return null;
+              if (!fallbackQuiz) {
+                return null;
+              }
+
+              return {
+                ...fallbackQuiz,
+                coverImage: null,
+              };
+            } catch (fallbackError) {
+              if (isMissingQuizSchemaError(fallbackError)) {
+                return null;
+              }
+              throw fallbackError;
             }
-
-            return {
-              ...fallbackQuiz,
-              coverImage: null,
-            };
           }
 
           if (isMissingQuizSchemaError(error)) {

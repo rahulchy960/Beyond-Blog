@@ -1,10 +1,5 @@
-import { AdminSectionPlaceholder } from "@/components/admin/admin-section-placeholder";
+import { AdminAuditLogsScreen } from "@/components/admin/admin-audit-logs-screen";
 
 export default function AdminAuditLogsPage() {
-  return (
-    <AdminSectionPlaceholder
-      title="Audit Logs"
-      description="Track administrative actions for accountability and operational safety."
-    />
-  );
+  return <AdminAuditLogsScreen />;
 }

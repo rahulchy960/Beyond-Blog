@@ -12,6 +12,7 @@ import {
 } from "@/lib/media/schemas";
 import { createTRPCRouter, adminProcedure } from "@/server/api/trpc";
 import { deleteProviderAsset } from "@/server/media/provider";
+import { createAuditLog } from "@/server/audit/log";
 
 export const mediaRouter = createTRPCRouter({
   list: adminProcedure.input(listMediaInputSchema).query(async ({ ctx, input }) => {
@@ -116,6 +117,19 @@ export const mediaRouter = createTRPCRouter({
         },
       });
 
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "media.update_metadata",
+        entityType: "MEDIA_ASSET",
+        entityId: updated.id,
+        metadata: {
+          title: updated.title,
+          type: updated.type,
+          mimeType: updated.mimeType,
+        },
+      });
+
       return updated;
     }),
 
@@ -138,6 +152,18 @@ export const mediaRouter = createTRPCRouter({
 
     await ctx.db.mediaAsset.delete({
       where: { id: input.id },
+    });
+
+    await createAuditLog({
+      db: ctx.db,
+      adminUserId: ctx.adminUser.id,
+      action: "media.delete",
+      entityType: "MEDIA_ASSET",
+      entityId: input.id,
+      metadata: {
+        storageProvider: existing.storageProvider,
+        storageKey: existing.storageKey,
+      },
     });
 
     await deleteProviderAsset({
@@ -163,21 +189,44 @@ export const mediaRouter = createTRPCRouter({
         });
       }
 
-      return ctx.db.mediaAsset.update({
+      const updated = await ctx.db.mediaAsset.update({
         where: { id: input.mediaId },
         data: { contentId: input.contentId },
         select: { id: true, contentId: true },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "media.attach_to_content",
+        entityType: "MEDIA_ASSET",
+        entityId: updated.id,
+        metadata: {
+          contentId: updated.contentId,
+        },
+      });
+
+      return updated;
     }),
 
   detachFromContent: adminProcedure
     .input(detachMediaFromContentInputSchema)
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.mediaAsset.update({
+      const updated = await ctx.db.mediaAsset.update({
         where: { id: input.mediaId },
         data: { contentId: null },
         select: { id: true, contentId: true },
       });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "media.detach_from_content",
+        entityType: "MEDIA_ASSET",
+        entityId: updated.id,
+      });
+
+      return updated;
     }),
 
   createExternalVideo: adminProcedure
@@ -197,6 +246,18 @@ export const mediaRouter = createTRPCRouter({
           sizeBytes: 0,
           durationSeconds: input.durationSeconds ?? null,
           uploadedByAdminId: ctx.adminUser.id,
+        },
+      });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "media.create_external_video",
+        entityType: "MEDIA_ASSET",
+        entityId: created.id,
+        metadata: {
+          provider: created.storageProvider,
+          url: created.url,
         },
       });
 

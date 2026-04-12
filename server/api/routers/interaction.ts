@@ -20,6 +20,7 @@ import {
 } from "@/lib/interaction/schemas";
 import { getVisitorTokenHash } from "@/lib/interaction/visitor";
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
+import { createAuditLog } from "@/server/audit/log";
 
 type InteractionTargetInput = {
   targetType: InteractionTargetType;
@@ -27,7 +28,18 @@ type InteractionTargetInput = {
 };
 
 function isLegacyInteractionSchemaError(error: unknown) {
-  const message = String(error ?? "");
+  const message =
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+      ? (error as { message: string }).message
+      : String(error ?? "");
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code?: unknown }).code ?? "")
+      : "";
+
   if (message.includes('invalid input value for enum "CommentStatus"')) {
     return true;
   }
@@ -36,6 +48,9 @@ function isLegacyInteractionSchemaError(error: unknown) {
     message.includes("The column `(not available)` does not exist") ||
     (message.includes("column") && message.includes("does not exist"))
   ) {
+    return true;
+  }
+  if (code === "P2021" || code === "P2022" || code === "P2010") {
     return true;
   }
 
@@ -628,7 +643,7 @@ export const interactionRouter = createTRPCRouter({
           }
         }
 
-        return await ctx.db.comment.update({
+        const updated = await ctx.db.comment.update({
           where: {
             id: input.commentId,
           },
@@ -642,6 +657,20 @@ export const interactionRouter = createTRPCRouter({
             status: true,
           },
         });
+
+        await createAuditLog({
+          db: ctx.db,
+          adminUserId: ctx.adminUser.id,
+          action: "comment.moderate",
+          entityType: "COMMENT",
+          entityId: updated.id,
+          metadata: {
+            status: updated.status,
+            moderationNote: normalizeOptionalText(input.moderationNote),
+          },
+        });
+
+        return updated;
       } catch (error) {
         const preconditionError = toPreconditionError(error);
         if (preconditionError) {
@@ -654,9 +683,32 @@ export const interactionRouter = createTRPCRouter({
 
   deleteComment: adminProcedure.input(deleteCommentInputSchema).mutation(async ({ ctx, input }) => {
     try {
+      const existing = await ctx.db.comment.findUnique({
+        where: {
+          id: input.commentId,
+        },
+        select: {
+          id: true,
+          guestName: true,
+          targetType: true,
+        },
+      });
+
       await ctx.db.comment.delete({
         where: {
           id: input.commentId,
+        },
+      });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "comment.delete",
+        entityType: "COMMENT",
+        entityId: input.commentId,
+        metadata: {
+          guestName: existing?.guestName ?? null,
+          targetType: existing?.targetType ?? null,
         },
       });
 
@@ -674,6 +726,18 @@ export const interactionRouter = createTRPCRouter({
   }),
 
   getAdminStats: adminProcedure.query(async ({ ctx }) => {
+    const fallback = {
+      counts: {
+        visibleComments: 0,
+        pendingComments: 0,
+        hiddenComments: 0,
+        deletedComments: 0,
+        totalLikes: 0,
+      },
+      latestComments: [],
+      topEngagedTargets: [],
+    } as const;
+
     try {
       const pendingSupported = await hasPendingCommentStatus(ctx.db);
       const statusesForActivity = pendingSupported
@@ -926,17 +990,21 @@ export const interactionRouter = createTRPCRouter({
       };
     } catch (error) {
       if (isLegacyInteractionSchemaError(error)) {
-        return {
-          counts: {
-            visibleComments: 0,
-            pendingComments: 0,
-            hiddenComments: 0,
-            deletedComments: 0,
-            totalLikes: 0,
-          },
-          latestComments: [],
-          topEngagedTargets: [],
-        };
+        return fallback;
+      }
+      const message =
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof (error as { message?: unknown }).message === "string"
+          ? (error as { message: string }).message
+          : String(error ?? "");
+      if (
+        message.includes("Invalid `ctx.db.comment.findMany()` invocation") ||
+        message.includes("does not exist in the current database") ||
+        message.includes("The column `(not available)` does not exist")
+      ) {
+        return fallback;
       }
 
       throw error;

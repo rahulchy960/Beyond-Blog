@@ -6,6 +6,7 @@ import {
   Gauge,
   GraduationCap,
   ImageIcon,
+  LineChart,
   Layers3Icon,
   MessageSquare,
   ScrollText,
@@ -23,6 +24,7 @@ export type AdminNavItem = {
 
 export const adminNavigation: AdminNavItem[] = [
   { title: "Dashboard", href: "/admin", icon: Gauge },
+  { title: "Analytics", href: "/admin/analytics", icon: LineChart },
   { title: "All Content", href: "/admin/content", icon: Layers3Icon },
   { title: "Journals", href: "/admin/journals", icon: BookOpenText },
   { title: "Articles", href: "/admin/articles", icon: FileText },
