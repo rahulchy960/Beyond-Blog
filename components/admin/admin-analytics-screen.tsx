@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { RetryPanel } from "@/components/ui/retry-panel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -189,7 +190,11 @@ export function AdminAnalyticsScreen() {
           ))}
         </div>
       ) : detailQuery.isError ? (
-        <EmptyState title="Unable to load analytics" description={detailQuery.error.message} />
+        <RetryPanel
+          title="Unable to load analytics"
+          error={detailQuery.error}
+          onRetry={() => detailQuery.refetch()}
+        />
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -239,7 +244,11 @@ export function AdminAnalyticsScreen() {
                       <Skeleton className="h-11 w-full" />
                     </>
                   ) : topQuery.isError ? (
-                    <EmptyState title="Unable to rank top items" description={topQuery.error.message} />
+                    <RetryPanel
+                      title="Unable to rank top items"
+                      error={topQuery.error}
+                      onRetry={() => topQuery.refetch()}
+                    />
                   ) : topQuery.data.items.length === 0 ? (
                     <EmptyState title="No ranking data yet" description="Public engagement data will appear as activity grows." />
                   ) : (
@@ -369,3 +378,4 @@ export function AdminAnalyticsScreen() {
     </div>
   );
 }
+

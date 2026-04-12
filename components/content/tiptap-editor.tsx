@@ -17,11 +17,14 @@ import {
   PilcrowIcon,
   QuoteIcon,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { tiptapEditorExtensions } from "@/lib/content/tiptap-extensions";
 import { normalizeRichTextDocument } from "@/lib/content/rich-text";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
+import { toUserErrorMessage } from "@/lib/errors/client";
 
 type ToolbarButtonProps = {
   onClick: () => void;
@@ -54,6 +57,7 @@ type TiptapEditorProps = {
 
 export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
   const normalizedValue = normalizeRichTextDocument(value);
+  const [editorSyncError, setEditorSyncError] = useState<unknown>(null);
 
   const editor = useEditor({
     extensions: tiptapEditorExtensions,
@@ -66,7 +70,14 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
       },
     },
     onUpdate: ({ editor: tiptapEditor }) => {
-      onChange(tiptapEditor.getJSON());
+      try {
+        onChange(tiptapEditor.getJSON());
+        if (editorSyncError) {
+          setEditorSyncError(null);
+        }
+      } catch (error) {
+        setEditorSyncError(error);
+      }
     },
   });
 
@@ -77,13 +88,44 @@ export function TiptapEditor({ value, onChange }: TiptapEditorProps) {
 
     const current = editor.getJSON();
     if (JSON.stringify(current) !== JSON.stringify(normalizedValue)) {
-      editor.commands.setContent(normalizedValue, { emitUpdate: false });
+      try {
+        editor.commands.setContent(normalizedValue, { emitUpdate: false });
+      } catch (error) {
+        queueMicrotask(() => setEditorSyncError(error));
+      }
     }
   }, [editor, normalizedValue]);
 
   if (!editor) {
     return (
       <div className="min-h-[360px] animate-pulse rounded-xl border border-border/70 bg-muted/45" />
+    );
+  }
+
+  if (editorSyncError) {
+    return (
+      <ErrorState
+        title="Editor failed to load content"
+        description={toUserErrorMessage(
+          editorSyncError,
+          "The rich text document could not be rendered. You can reset to a clean draft.",
+        )}
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const fallback = normalizeRichTextDocument(null);
+              onChange(fallback);
+              setEditorSyncError(null);
+              editor.commands.setContent(fallback, { emitUpdate: false });
+            }}
+          >
+            Reset editor content
+          </Button>
+        }
+      />
     );
   }
 

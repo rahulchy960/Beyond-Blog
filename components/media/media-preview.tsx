@@ -1,7 +1,7 @@
-import Image from "next/image";
 import { FileIcon } from "lucide-react";
 import { MEDIA_TYPE, type MediaType } from "@/lib/content/enums";
 import { formatFileSize, getMediaTypeLabel } from "@/lib/media/utils";
+import { GracefulMedia } from "@/components/ui/graceful-media";
 
 type MediaPreviewProps = {
   media: {
@@ -37,12 +37,11 @@ export function MediaPreview({ media, compact = false }: MediaPreviewProps) {
     <div className="surface-inset flex items-center gap-3 p-3">
       <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted">
         {media.type === MEDIA_TYPE.IMAGE ? (
-          <Image
+          <GracefulMedia
             src={imageUrl}
             alt={media.altText ?? media.title ?? "Media preview"}
             fill
-            unoptimized
-            className="object-cover"
+            fallbackLabel="Image missing"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground uppercase">

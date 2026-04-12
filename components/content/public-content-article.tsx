@@ -1,5 +1,4 @@
 import { format } from "date-fns";
-import Image from "next/image";
 import Link from "next/link";
 import { CalendarDaysIcon, FolderKanbanIcon } from "lucide-react";
 import { INTERACTION_TARGET_TYPE, type ContentType } from "@/lib/content/enums";
@@ -7,6 +6,7 @@ import { contentTypeMeta } from "@/lib/content/constants";
 import { CommentThread } from "@/components/interaction/comment-thread";
 import { RelatedContentSection } from "@/components/discovery/related-content-section";
 import { Badge } from "@/components/ui/badge";
+import { GracefulMedia } from "@/components/ui/graceful-media";
 import { RichTextRenderer } from "@/components/content/rich-text-renderer";
 import { type DiscoveryResultItem } from "@/types/discovery";
 
@@ -73,13 +73,13 @@ export function PublicContentArticle({ type, content, relatedItems = [] }: Publi
 
       {content.coverImage ? (
         <div className="surface-reading overflow-hidden p-2">
-          <Image
+          <GracefulMedia
             src={content.coverImage.url}
             alt={content.coverImage.altText ?? content.title}
             width={1600}
             height={900}
-            unoptimized
-            className="h-auto w-full rounded-xl object-cover"
+            className="rounded-xl"
+            fallbackLabel="Cover unavailable"
           />
         </div>
       ) : null}

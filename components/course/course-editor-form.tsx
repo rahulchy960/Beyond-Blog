@@ -39,15 +39,19 @@ import {
 } from "@/lib/content/enums";
 import { emptyRichTextDocument, normalizeRichTextDocument } from "@/lib/content/rich-text";
 import { slugifyText } from "@/lib/content/slug";
+import { toUserErrorMessage } from "@/lib/errors/client";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FormErrorSummary } from "@/components/ui/form-error-summary";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EditorPageSkeleton } from "@/components/ui/loading-skeletons";
 import { PageHeader } from "@/components/ui/page-header";
+import { RetryPanel } from "@/components/ui/retry-panel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -154,6 +158,7 @@ export function CourseEditorForm({ mode, courseId }: CourseEditorFormProps) {
   const [lessonDialogMode, setLessonDialogMode] = useState<"create" | "edit">("create");
   const [lessonDraft, setLessonDraft] = useState<LessonDraft>(getEmptyLessonDraft());
   const [lessonMediaPickerOpen, setLessonMediaPickerOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useForm<CourseFormValues>({
     resolver: zodResolver(courseFormSchema),
@@ -192,107 +197,121 @@ export function CourseEditorForm({ mode, courseId }: CourseEditorFormProps) {
     ]);
   };
 
+  const onMutationError = (error: unknown, fallback = "Unable to save course changes.") => {
+    const message = toUserErrorMessage(error, fallback);
+    setSubmitError(message);
+    toast.error(message);
+  };
+
   const createMutation = useMutation(
     trpc.course.create.mutationOptions({
       onSuccess: async (data) => {
+        setSubmitError(null);
         toast.success("Course created.");
         await invalidateCourseQueries();
         router.push(`/admin/courses/${data.id}/edit`);
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error, "Unable to create course."),
     }),
   );
 
   const updateMutation = useMutation(
     trpc.course.update.mutationOptions({
       onSuccess: async () => {
+        setSubmitError(null);
         toast.success("Course updated.");
         await invalidateCourseQueries();
         router.refresh();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error, "Unable to update course."),
     }),
   );
 
   const createSectionMutation = useMutation(
     trpc.course.createSection.mutationOptions({
       onSuccess: async () => {
+        setSubmitError(null);
         toast.success("Section added.");
         setSectionDialogOpen(false);
         setSectionDraftTitle("");
         setSectionDraftDescription("");
         await invalidateCourseQueries();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error, "Unable to add section."),
     }),
   );
 
   const updateSectionMutation = useMutation(
     trpc.course.updateSection.mutationOptions({
       onSuccess: async () => {
+        setSubmitError(null);
         toast.success("Section updated.");
         setSectionDialogOpen(false);
         await invalidateCourseQueries();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error, "Unable to update section."),
     }),
   );
 
   const deleteSectionMutation = useMutation(
     trpc.course.deleteSection.mutationOptions({
       onSuccess: async () => {
+        setSubmitError(null);
         toast.success("Section deleted.");
         await invalidateCourseQueries();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error, "Unable to delete section."),
     }),
   );
 
   const reorderSectionsMutation = useMutation(
     trpc.course.reorderSections.mutationOptions({
       onSuccess: invalidateCourseQueries,
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error, "Unable to reorder sections."),
     }),
   );
 
   const createLessonMutation = useMutation(
     trpc.course.createLesson.mutationOptions({
       onSuccess: async () => {
+        setSubmitError(null);
         toast.success("Lesson added.");
         setLessonDialogOpen(false);
         setLessonDraft(getEmptyLessonDraft());
         await invalidateCourseQueries();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error, "Unable to add lesson."),
     }),
   );
 
   const updateLessonMutation = useMutation(
     trpc.course.updateLesson.mutationOptions({
       onSuccess: async () => {
+        setSubmitError(null);
         toast.success("Lesson updated.");
         setLessonDialogOpen(false);
         setLessonDraft(getEmptyLessonDraft());
         await invalidateCourseQueries();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error, "Unable to update lesson."),
     }),
   );
 
   const deleteLessonMutation = useMutation(
     trpc.course.deleteLesson.mutationOptions({
       onSuccess: async () => {
+        setSubmitError(null);
         toast.success("Lesson deleted.");
         await invalidateCourseQueries();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error, "Unable to delete lesson."),
     }),
   );
 
   const reorderLessonsMutation = useMutation(
     trpc.course.reorderLessons.mutationOptions({
       onSuccess: invalidateCourseQueries,
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error, "Unable to reorder lessons."),
     }),
   );
 
@@ -334,6 +353,7 @@ export function CourseEditorForm({ mode, courseId }: CourseEditorFormProps) {
   }, [coverMedia, coverImageIdValue, courseData]);
 
   const onSubmit = (values: CourseFormValues) => {
+    setSubmitError(null);
     const payload = {
       ...values,
       slug: slugifyText(values.slug),
@@ -352,7 +372,9 @@ export function CourseEditorForm({ mode, courseId }: CourseEditorFormProps) {
     }
 
     if (!courseId) {
-      toast.error("Missing course id.");
+      const message = "Missing course id.";
+      setSubmitError(message);
+      toast.error(message);
       return;
     }
 
@@ -523,11 +545,18 @@ export function CourseEditorForm({ mode, courseId }: CourseEditorFormProps) {
   const isSavingCourse = createMutation.isPending || updateMutation.isPending;
 
   if (mode === "edit" && courseQuery.isPending) {
-    return <div className="surface-panel rounded-xl p-6 text-sm">Loading course...</div>;
+    return <EditorPageSkeleton />;
   }
 
-  if (mode === "edit" && courseQuery.error) {
-    return <div className="surface-panel rounded-xl p-6 text-sm text-destructive">{courseQuery.error.message}</div>;
+  if (mode === "edit" && courseQuery.isError) {
+    return (
+      <RetryPanel
+        title="Unable to load course editor"
+        error={courseQuery.error}
+        onRetry={() => courseQuery.refetch()}
+        retryLabel="Reload course"
+      />
+    );
   }
 
   return (
@@ -546,6 +575,7 @@ export function CourseEditorForm({ mode, courseId }: CourseEditorFormProps) {
         }
       />
 
+      <FormErrorSummary errors={form.formState.errors} serverError={submitError} />
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6 lg:grid-cols-[1fr_24rem]">
         <div className="space-y-6">
           <Card className="surface-panel">

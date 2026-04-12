@@ -2,11 +2,11 @@
 
 import { motion } from "motion/react";
 import { format } from "date-fns";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { GracefulMedia } from "@/components/ui/graceful-media";
 import type { ContentType } from "@/lib/content/enums";
 import { contentTypeMeta } from "@/lib/content/constants";
 
@@ -34,17 +34,13 @@ export function FeaturedContentCard({ type, item }: FeaturedContentCardProps) {
       <Card className="surface-panel-strong overflow-hidden">
         <div className="grid gap-0 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="relative min-h-64 border-b border-border/70 lg:min-h-[23rem] lg:border-r lg:border-b-0">
-            {item.coverImage ? (
-              <Image
-                src={item.coverImage.url}
-                alt={item.coverImage.altText ?? item.title}
-                fill
-                unoptimized
-                className="object-cover"
-              />
-            ) : (
-              <div className="absolute inset-0 bg-muted" />
-            )}
+            <GracefulMedia
+              src={item.coverImage?.url ?? null}
+              alt={item.coverImage?.altText ?? item.title}
+              fill
+              className="absolute inset-0"
+              fallbackLabel="No cover"
+            />
           </div>
           <div className="flex flex-col justify-center">
             <CardHeader className="space-y-4">

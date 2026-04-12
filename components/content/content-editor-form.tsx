@@ -23,14 +23,18 @@ import { contentTypeMeta, publishStatusOptions } from "@/lib/content/constants";
 import { emptyRichTextDocument } from "@/lib/content/rich-text";
 import { createContentInputSchema } from "@/lib/content/schemas";
 import { slugifyText } from "@/lib/content/slug";
+import { toUserErrorMessage } from "@/lib/errors/client";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EditorPageSkeleton } from "@/components/ui/loading-skeletons";
+import { FormErrorSummary } from "@/components/ui/form-error-summary";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import { RetryPanel } from "@/components/ui/retry-panel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -84,6 +88,7 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [pickedCoverMedia, setPickedCoverMedia] = useState<CoverMediaPreview | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useForm<EditorFormValues>({
     resolver: zodResolver(editorFormSchema),
@@ -171,24 +176,34 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
   const createMutation = useMutation(
     trpc.content.create.mutationOptions({
       onSuccess: async (data) => {
+        setSubmitError(null);
         toast.success(`${contentMeta.singular} created.`);
         await queryClient.invalidateQueries({ queryKey: trpc.content.pathKey() });
         await queryClient.invalidateQueries({ queryKey: trpc.admin.pathKey() });
         router.push(`${contentMeta.adminBasePath}/${data.id}/edit`);
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => {
+        const message = toUserErrorMessage(error, `Unable to create ${contentMeta.singular.toLowerCase()}.`);
+        setSubmitError(message);
+        toast.error(message);
+      },
     }),
   );
 
   const updateMutation = useMutation(
     trpc.content.update.mutationOptions({
       onSuccess: async () => {
+        setSubmitError(null);
         toast.success(`${contentMeta.singular} updated.`);
         await queryClient.invalidateQueries({ queryKey: trpc.content.pathKey() });
         await queryClient.invalidateQueries({ queryKey: trpc.admin.pathKey() });
         router.refresh();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => {
+        const message = toUserErrorMessage(error, `Unable to update ${contentMeta.singular.toLowerCase()}.`);
+        setSubmitError(message);
+        toast.error(message);
+      },
     }),
   );
 
@@ -206,6 +221,7 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
   };
 
   const onSubmit = (values: EditorFormValues) => {
+    setSubmitError(null);
     const payload = {
       ...values,
       categoryId: values.categoryId && values.categoryId !== "none" ? values.categoryId : null,
@@ -223,7 +239,9 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
     }
 
     if (!contentId) {
-      toast.error("Missing content ID.");
+      const message = "Missing content ID.";
+      setSubmitError(message);
+      toast.error(message);
       return;
     }
 
@@ -237,14 +255,17 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
   const availableTags = useMemo(() => tagsQuery.data ?? [], [tagsQuery.data]);
 
   if (mode === "edit" && contentQuery.isPending) {
-    return <div className="surface-panel rounded-xl p-6 text-sm">Loading...</div>;
+    return <EditorPageSkeleton />;
   }
 
-  if (mode === "edit" && contentQuery.error) {
+  if (mode === "edit" && contentQuery.isError) {
     return (
-      <div className="surface-panel rounded-xl border-destructive/50 p-6 text-sm text-destructive">
-        {contentQuery.error.message}
-      </div>
+      <RetryPanel
+        title={`Unable to load this ${contentMeta.singular.toLowerCase()}`}
+        error={contentQuery.error}
+        onRetry={() => contentQuery.refetch()}
+        retryLabel="Reload editor"
+      />
     );
   }
 
@@ -268,6 +289,7 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
         }
       />
 
+      <FormErrorSummary errors={form.formState.errors} serverError={submitError} />
       <form
         onSubmit={form.handleSubmit(onSubmit)}
         className="grid gap-6 lg:grid-cols-[1fr_22rem]"

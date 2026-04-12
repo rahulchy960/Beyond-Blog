@@ -14,6 +14,24 @@ type MediaUploadDropzoneProps = {
   onUploadComplete?: () => void;
 };
 
+function mapUploadErrorToMessage(error: { message?: string } | null | undefined) {
+  const message = (error?.message ?? "").toLowerCase();
+
+  if (message.includes("file size") || message.includes("too large")) {
+    return "File is too large for this upload endpoint. Choose a smaller file and retry.";
+  }
+
+  if (message.includes("mime") || message.includes("type") || message.includes("unsupported")) {
+    return "This file type is not supported for this upload area.";
+  }
+
+  if (message.includes("network") || message.includes("fetch")) {
+    return "Upload failed due to a network issue. Check connectivity and retry.";
+  }
+
+  return error?.message || "Upload failed. Please retry.";
+}
+
 export function MediaUploadDropzone({
   endpoint,
   label,
@@ -40,7 +58,7 @@ export function MediaUploadDropzone({
           onUploadComplete?.();
         }}
         onUploadError={(error) => {
-          toast.error(error.message || "Upload failed.");
+          toast.error(mapUploadErrorToMessage(error));
         }}
       />
     </div>

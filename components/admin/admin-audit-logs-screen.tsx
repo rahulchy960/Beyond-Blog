@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { RetryPanel } from "@/components/ui/retry-panel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -34,7 +35,7 @@ function metadataPreview(value: unknown) {
 
   return entries
     .map(([key, item]) => `${key}: ${typeof item === "string" ? item : JSON.stringify(item)}`)
-    .join(" · ");
+    .join(" • ");
 }
 
 export function AdminAuditLogsScreen() {
@@ -112,7 +113,11 @@ export function AdminAuditLogsScreen() {
           </CardContent>
         </Card>
       ) : listQuery.isError ? (
-        <EmptyState title="Unable to load audit logs" description={listQuery.error.message} />
+        <RetryPanel
+          title="Unable to load audit logs"
+          error={listQuery.error}
+          onRetry={() => listQuery.refetch()}
+        />
       ) : listQuery.data.items.length === 0 ? (
         <EmptyState
           icon={ShieldCheckIcon}

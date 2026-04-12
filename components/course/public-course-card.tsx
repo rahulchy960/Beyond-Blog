@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Clock3Icon, GraduationCapIcon, Layers3Icon, SparklesIcon } from "lucide-react";
 import { courseDifficultyLabels } from "@/lib/course/constants";
 import { Badge } from "@/components/ui/badge";
+import { GracefulMedia } from "@/components/ui/graceful-media";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
 
@@ -35,19 +35,13 @@ export function PublicCourseCard({ course }: PublicCourseCardProps) {
     <article className="surface-panel-strong overflow-hidden p-2">
       <div className="grid gap-4 md:grid-cols-[14rem_1fr]">
         <div className="relative aspect-[16/11] overflow-hidden rounded-xl border border-border/70 bg-muted/45">
-          {imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={course.coverImage?.altText ?? course.title}
-              fill
-              unoptimized
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              <GraduationCapIcon className="size-7" />
-            </div>
-          )}
+          <GracefulMedia
+            src={imageUrl}
+            alt={course.coverImage?.altText ?? course.title}
+            fill
+            fallbackLabel="Course cover"
+            fallbackIcon={GraduationCapIcon}
+          />
         </div>
 
         <div className="space-y-3 px-1 py-1">

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,10 +32,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FormErrorSummary } from "@/components/ui/form-error-summary";
 import { Input } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/loading-skeletons";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import { RetryPanel } from "@/components/ui/retry-panel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,6 +51,7 @@ import {
   type QuizStatus,
 } from "@/lib/content/enums";
 import { slugifyText } from "@/lib/content/slug";
+import { toUserErrorMessage } from "@/lib/errors/client";
 import {
   quizQuestionTypeLabels,
   quizQuestionTypeOptions,
@@ -167,6 +170,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
     optionText: "",
     isCorrect: false,
   });
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useForm<QuizFormInput, unknown, QuizFormValues>({
     resolver: zodResolver(quizFormSchema),
@@ -197,10 +201,17 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
   );
 
   const invalidate = async () => {
+    setSubmitError(null);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: trpc.quiz.pathKey() }),
       queryClient.invalidateQueries({ queryKey: trpc.admin.pathKey() }),
     ]);
+  };
+
+  const onMutationError = (error: unknown, fallback = "Unable to save quiz changes.") => {
+    const message = toUserErrorMessage(error, fallback);
+    setSubmitError(message);
+    toast.error(message);
   };
 
   const createMutation = useMutation(
@@ -210,7 +221,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
         await invalidate();
         router.push(`/admin/quizzes/${data.id}/edit`);
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
@@ -221,7 +232,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
         await invalidate();
         router.refresh();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
@@ -231,7 +242,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
         toast.success("Quiz published.");
         await invalidate();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
@@ -241,7 +252,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
         toast.success("Quiz moved to draft.");
         await invalidate();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
@@ -251,7 +262,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
         toast.success("Quiz closed.");
         await invalidate();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
@@ -262,7 +273,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
         setQuestionDialogOpen(false);
         await invalidate();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
@@ -273,7 +284,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
         setQuestionDialogOpen(false);
         await invalidate();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
@@ -283,14 +294,14 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
         toast.success("Question deleted.");
         await invalidate();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
   const reorderQuestionsMutation = useMutation(
     trpc.quiz.reorderQuestions.mutationOptions({
       onSuccess: invalidate,
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
@@ -301,7 +312,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
         setOptionDialogOpen(false);
         await invalidate();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
@@ -312,7 +323,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
         setOptionDialogOpen(false);
         await invalidate();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
@@ -322,14 +333,14 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
         toast.success("Option deleted.");
         await invalidate();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
   const reorderOptionsMutation = useMutation(
     trpc.quiz.reorderOptions.mutationOptions({
       onSuccess: invalidate,
-      onError: (error) => toast.error(error.message),
+      onError: (error) => onMutationError(error),
     }),
   );
 
@@ -393,6 +404,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
   const quiz = quizQuery.data;
 
   const handleSave = form.handleSubmit(async (values) => {
+    setSubmitError(null);
     const payload = toQuizWriteInput(values);
     if (mode === "create") {
       await createMutation.mutateAsync(payload);
@@ -581,6 +593,7 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
 
   return (
     <div className="space-y-8">
+      <FormErrorSummary errors={form.formState.errors} serverError={submitError} />
       <PageHeader
         title={mode === "create" ? "New Quiz" : "Edit Quiz"}
         description="Author polished public quizzes with structured questions, scoring logic, and attempt controls."
@@ -832,7 +845,11 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
                 {analyticsQuery.isPending ? (
                   <TableSkeleton rows={4} />
                 ) : analyticsQuery.isError ? (
-                  <EmptyState title="Unable to load analytics" description={analyticsQuery.error.message} />
+                  <RetryPanel
+                    title="Unable to load analytics"
+                    error={analyticsQuery.error}
+                    onRetry={() => analyticsQuery.refetch()}
+                  />
                 ) : analyticsQuery.data ? (
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="surface-inset p-3">
@@ -904,7 +921,11 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
             ) : quizQuery.isPending ? (
               <TableSkeleton rows={6} />
             ) : quizQuery.isError ? (
-              <EmptyState title="Unable to load quiz builder" description={quizQuery.error.message} />
+              <RetryPanel
+                title="Unable to load quiz builder"
+                error={quizQuery.error}
+                onRetry={() => quizQuery.refetch()}
+              />
             ) : !quiz ? (
               <EmptyState title="Quiz not found" description="This quiz may have been removed." />
             ) : quiz.questions.length === 0 ? (
@@ -1109,3 +1130,4 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
     </div>
   );
 }
+

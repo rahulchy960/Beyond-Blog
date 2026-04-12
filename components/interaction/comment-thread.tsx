@@ -10,7 +10,9 @@ import { CommentForm, type CommentFormValues } from "@/components/interaction/co
 import { InteractionBar } from "@/components/interaction/interaction-bar";
 import { useTRPC } from "@/hooks/use-trpc";
 import { type InteractionTargetType } from "@/lib/content/enums";
+import { toUserErrorMessage } from "@/lib/errors/client";
 import { EmptyState } from "@/components/ui/empty-state";
+import { RetryPanel } from "@/components/ui/retry-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type CommentThreadProps = {
@@ -75,7 +77,7 @@ export function CommentThread({ targetType, targetId, title }: CommentThreadProp
         if (context?.previous) {
           queryClient.setQueryData(trpc.interaction.getLikeSummary.queryKey(likesInput), context.previous);
         }
-        toast.error(error.message);
+        toast.error(toUserErrorMessage(error, "Unable to update like state right now."));
       },
       onSuccess: (data) => {
         queryClient.setQueryData(trpc.interaction.getLikeSummary.queryKey(likesInput), data);
@@ -101,7 +103,7 @@ export function CommentThread({ targetType, targetId, title }: CommentThreadProp
         }
       },
       onError: (error) => {
-        toast.error(error.message);
+        toast.error(toUserErrorMessage(error, "Unable to submit your comment right now."));
       },
     }),
   );
@@ -142,6 +144,14 @@ export function CommentThread({ targetType, targetId, title }: CommentThreadProp
         onToggleLike={() => toggleLikeMutation.mutate(likesInput)}
         isLikePending={toggleLikeMutation.isPending}
       />
+      {likesQuery.isError ? (
+        <RetryPanel
+          title="Like status is temporarily unavailable"
+          error={likesQuery.error}
+          onRetry={() => likesQuery.refetch()}
+          retryLabel="Reload reactions"
+        />
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:gap-5">
         <CommentForm
@@ -166,9 +176,10 @@ export function CommentThread({ targetType, targetId, title }: CommentThreadProp
               <Skeleton className="h-16 w-full rounded-xl" />
             </div>
           ) : commentsQuery.isError ? (
-            <EmptyState
+            <RetryPanel
               title="Unable to load comments"
-              description={commentsQuery.error.message}
+              error={commentsQuery.error}
+              onRetry={() => commentsQuery.refetch()}
             />
           ) : comments.length === 0 ? (
             <EmptyState

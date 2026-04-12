@@ -1,5 +1,4 @@
 import { format } from "date-fns";
-import Image from "next/image";
 import Link from "next/link";
 import { Clock3Icon, ExternalLinkIcon, Layers3Icon, SparklesIcon } from "lucide-react";
 import { INTERACTION_TARGET_TYPE } from "@/lib/content/enums";
@@ -7,6 +6,7 @@ import { courseDifficultyLabels, courseLessonTypeLabels } from "@/lib/course/con
 import { CommentThread } from "@/components/interaction/comment-thread";
 import { RelatedContentSection } from "@/components/discovery/related-content-section";
 import { Badge } from "@/components/ui/badge";
+import { GracefulMedia } from "@/components/ui/graceful-media";
 import { RichTextRenderer } from "@/components/content/rich-text-renderer";
 import { type DiscoveryResultItem } from "@/types/discovery";
 
@@ -95,13 +95,12 @@ function CourseLessonBlock({
 
       {lesson.mediaAsset?.type === "IMAGE" ? (
         <div className="overflow-hidden rounded-xl border border-border/70 bg-muted/45">
-          <Image
+          <GracefulMedia
             src={lesson.mediaAsset.thumbnailUrl ?? lesson.mediaAsset.url}
             alt={lesson.mediaAsset.altText ?? lesson.title}
             width={1200}
             height={700}
-            unoptimized
-            className="h-auto w-full object-cover"
+            fallbackLabel="Image unavailable"
           />
         </div>
       ) : null}
@@ -158,7 +157,14 @@ export function PublicCourseDetail({ course, relatedItems = [] }: PublicCourseDe
 
       {coverUrl ? (
         <div className="surface-reading overflow-hidden p-2">
-          <Image src={coverUrl} alt={course.coverImage?.altText ?? course.title} width={1600} height={900} unoptimized className="h-auto w-full rounded-xl object-cover" />
+          <GracefulMedia
+            src={coverUrl}
+            alt={course.coverImage?.altText ?? course.title}
+            width={1600}
+            height={900}
+            className="rounded-xl"
+            fallbackLabel="Cover unavailable"
+          />
         </div>
       ) : null}
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { useTRPC } from "@/hooks/use-trpc";
 import { interactionTargetLabels } from "@/lib/interaction/constants";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
+import { RetryPanel } from "@/components/ui/retry-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function AdminInteractionInsights() {
@@ -39,7 +39,11 @@ export function AdminInteractionInsights() {
           <CardDescription>Live guest interaction signals across the public platform.</CardDescription>
         </CardHeader>
         <CardContent>
-          <EmptyState title="Unable to load interaction activity" description={summaryQuery.error.message} />
+          <RetryPanel
+            title="Unable to load interaction activity"
+            error={summaryQuery.error}
+            onRetry={() => summaryQuery.refetch()}
+          />
         </CardContent>
       </Card>
     );
@@ -166,3 +170,5 @@ export function AdminInteractionInsights() {
     </Card>
   );
 }
+
+

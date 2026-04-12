@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { CommentsToolbar } from "@/components/interaction/comments-toolbar";
 import { ModerationStatusBadge } from "@/components/interaction/moderation-status-badge";
 import { useTRPC } from "@/hooks/use-trpc";
+import { toUserErrorMessage } from "@/lib/errors/client";
 import { interactionTargetLabels } from "@/lib/interaction/constants";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { TableSkeleton } from "@/components/ui/loading-skeletons";
+import { RetryPanel } from "@/components/ui/retry-panel";
 
 type ModerationStatus = "PENDING" | "VISIBLE" | "HIDDEN" | "DELETED";
 
@@ -72,7 +74,8 @@ export function AdminCommentsModerationScreen() {
         toast.success(`Comment marked ${variables.status.toLowerCase()}.`);
         await refresh();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) =>
+        toast.error(toUserErrorMessage(error, "Unable to update comment moderation status.")),
     }),
   );
 
@@ -83,7 +86,8 @@ export function AdminCommentsModerationScreen() {
         setCommentToDelete(null);
         await refresh();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) =>
+        toast.error(toUserErrorMessage(error, "Unable to delete this comment right now.")),
     }),
   );
 
@@ -111,9 +115,10 @@ export function AdminCommentsModerationScreen() {
         {listQuery.isPending ? (
           <TableSkeleton rows={8} />
         ) : listQuery.isError ? (
-          <EmptyState
+          <RetryPanel
             title="Unable to load comments"
-            description={listQuery.error.message || "An unexpected error occurred."}
+            error={listQuery.error}
+            onRetry={() => listQuery.refetch()}
           />
         ) : rows.length === 0 ? (
           <EmptyState

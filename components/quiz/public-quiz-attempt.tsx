@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { useMutation } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import {
@@ -18,6 +17,7 @@ import { RelatedContentSection } from "@/components/discovery/related-content-se
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { GracefulMedia } from "@/components/ui/graceful-media";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type DiscoveryResultItem } from "@/types/discovery";
@@ -241,13 +241,13 @@ export function PublicQuizAttempt({ quiz, relatedItems = [] }: PublicQuizAttempt
 
       {imageUrl ? (
         <div className="surface-reading overflow-hidden p-2">
-          <Image
+          <GracefulMedia
             src={imageUrl}
             alt={quiz.coverImage?.altText ?? quiz.title}
             width={1600}
             height={900}
-            unoptimized
-            className="h-auto w-full rounded-xl object-cover"
+            className="rounded-xl"
+            fallbackLabel="Cover unavailable"
           />
         </div>
       ) : null}

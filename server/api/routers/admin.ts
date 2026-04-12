@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { Prisma } from "@prisma/client";
-import { COMMENT_STATUS, type CommentStatus } from "@/lib/content/enums";
 import { createTRPCRouter, adminProcedure } from "@/server/api/trpc";
 import { findAdminById, updateAdminImageUrlById } from "@/lib/auth/admin-repository";
+import { getDashboardSummary } from "@/server/analytics/service";
 import { createAuditLog } from "@/server/audit/log";
 
 const updateAdminAvatarInputSchema = z.object({
@@ -30,189 +29,52 @@ export const adminRouter = createTRPCRouter({
   }),
 
   dashboardStats: adminProcedure.query(async ({ ctx }) => {
-    const hasPendingCommentStatus = async () => {
-      try {
-        const rows = await ctx.db.$queryRaw<Array<{ exists: boolean }>>`
-          SELECT EXISTS (
-            SELECT 1
-            FROM pg_type t
-            JOIN pg_enum e ON t.oid = e.enumtypid
-            WHERE t.typname = 'CommentStatus'
-              AND e.enumlabel = 'PENDING'
-          ) AS "exists"
-        `;
-
-        return rows[0]?.exists ?? false;
-      } catch {
-        return false;
-      }
-    };
-
-    const isLegacyInteractionSchemaError = (error: unknown) => {
-      const message =
-        typeof error === "object" &&
-        error !== null &&
-        "message" in error &&
-        typeof (error as { message?: unknown }).message === "string"
-          ? (error as { message: string }).message
-          : String(error ?? "");
-      const code =
-        typeof error === "object" && error !== null && "code" in error
-          ? String((error as { code?: unknown }).code ?? "")
-          : "";
-
-      if (message.includes('invalid input value for enum "CommentStatus"')) {
-        return true;
-      }
-      if (
-        message.includes("does not exist in the current database") ||
-        message.includes("The column `(not available)` does not exist") ||
-        (message.includes("column") && message.includes("does not exist"))
-      ) {
-        return true;
-      }
-      if (code === "P2021" || code === "P2022" || code === "P2010") {
-        return true;
-      }
-
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
-        return false;
-      }
-
-      if (error.code === "P2021" || error.code === "P2022") {
-        return true;
-      }
-
-      if (error.code === "P2010") {
-        const text = String(error.message);
-        return (
-          text.includes("Comment") ||
-          text.includes("ContentLike") ||
-          text.includes("commentStatus") ||
-          text.includes("CommentStatus")
-        );
-      }
-
-      return false;
-    };
-
-    const safeCourseCount = async () => {
-      try {
-        return await ctx.db.course.count();
-      } catch (error) {
-        if (isLegacyInteractionSchemaError(error)) {
-          return 0;
-        }
-        throw error;
-      }
-    };
-
-    const safeLikeCount = async () => {
-      try {
-        return await ctx.db.contentLike.count();
-      } catch (error) {
-        if (isLegacyInteractionSchemaError(error)) {
-          return 0;
-        }
-        throw error;
-      }
-    };
-
-    const safeCommentCount = async (status: CommentStatus, pendingSupported: boolean) => {
-      if (status === COMMENT_STATUS.PENDING && !pendingSupported) {
-        return 0;
-      }
-
-      try {
-        return await ctx.db.comment.count({ where: { status } });
-      } catch (error) {
-        if (isLegacyInteractionSchemaError(error)) {
-          return 0;
-        }
-        throw error;
-      }
-    };
-
-    const pendingSupported = await hasPendingCommentStatus();
-
-    const safeQuizCount = async () => {
-      try {
-        return await ctx.db.quiz.count();
-      } catch (error) {
-        if (isLegacyInteractionSchemaError(error)) {
-          return 0;
-        }
-        throw error;
-      }
-    };
-
-    const [
-      totalContent,
-      publishedContent,
-      draftContent,
-      totalVisibleComments,
-      pendingComments,
-      totalQuizAttempts,
-      totalQuizzes,
-      totalCourses,
-      totalLikes,
-    ] =
-      await Promise.all([
-        ctx.db.content.count(),
-        ctx.db.content.count({ where: { publishStatus: "PUBLISHED" } }),
-        ctx.db.content.count({ where: { publishStatus: "DRAFT" } }),
-        safeCommentCount(COMMENT_STATUS.VISIBLE, pendingSupported),
-        safeCommentCount(COMMENT_STATUS.PENDING, pendingSupported),
-        ctx.db.quizAttempt.count(),
-        safeQuizCount(),
-        safeCourseCount(),
-        safeLikeCount(),
-      ]);
+    const summary = await getDashboardSummary(ctx.db);
 
     return [
       {
         title: "Total Content",
-        value: totalContent.toLocaleString(),
+        value: summary.metrics.totalContent.toLocaleString(),
         description: "Journals, articles, and projects combined",
       },
       {
         title: "Published Content",
-        value: publishedContent.toLocaleString(),
+        value: summary.metrics.publishedContent.toLocaleString(),
         description: "Visible to public visitors",
       },
       {
         title: "Draft Content",
-        value: draftContent.toLocaleString(),
+        value: summary.metrics.draftContent.toLocaleString(),
         description: "Pending editorial review",
       },
       {
         title: "Courses",
-        value: totalCourses.toLocaleString(),
+        value: summary.metrics.totalCourses.toLocaleString(),
         description: "Structured learning tracks",
       },
       {
         title: "Total Comments",
-        value: totalVisibleComments.toLocaleString(),
+        value: summary.metrics.visibleComments.toLocaleString(),
         description: "Visible guest comments across published content",
       },
       {
         title: "Pending Comments",
-        value: pendingComments.toLocaleString(),
+        value: summary.metrics.pendingComments.toLocaleString(),
         description: "Awaiting moderation review",
       },
       {
         title: "Total Likes",
-        value: totalLikes.toLocaleString(),
+        value: summary.metrics.totalLikes.toLocaleString(),
         description: "Anonymous likes from public visitors",
       },
       {
         title: "Total Quiz Attempts",
-        value: totalQuizAttempts.toLocaleString(),
+        value: summary.metrics.totalQuizAttempts.toLocaleString(),
         description: "Guest quiz submissions",
       },
       {
         title: "Total Quizzes",
-        value: totalQuizzes.toLocaleString(),
+        value: summary.metrics.totalQuizzes.toLocaleString(),
         description: "Draft, published, and closed quizzes",
       },
     ];

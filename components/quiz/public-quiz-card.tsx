@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Clock3Icon, ListChecksIcon, SparklesIcon, TimerResetIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { GracefulMedia } from "@/components/ui/graceful-media";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
 
@@ -34,19 +34,13 @@ export function PublicQuizCard({ quiz }: PublicQuizCardProps) {
     <article className="surface-panel-strong overflow-hidden p-2">
       <div className="grid gap-4 md:grid-cols-[14rem_1fr]">
         <div className="relative aspect-[16/11] overflow-hidden rounded-xl border border-border/70 bg-muted/40">
-          {imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={quiz.coverImage?.altText ?? quiz.title}
-              fill
-              unoptimized
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              <ListChecksIcon className="size-8" />
-            </div>
-          )}
+          <GracefulMedia
+            src={imageUrl}
+            alt={quiz.coverImage?.altText ?? quiz.title}
+            fill
+            fallbackLabel="Quiz cover"
+            fallbackIcon={ListChecksIcon}
+          />
         </div>
 
         <div className="space-y-3 px-1 py-1">

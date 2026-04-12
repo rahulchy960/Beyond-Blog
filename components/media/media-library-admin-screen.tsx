@@ -6,6 +6,7 @@ import { PlusIcon, VideoIcon } from "lucide-react";
 import { toast } from "sonner";
 import { type MediaType } from "@/lib/content/enums";
 import { useTRPC } from "@/hooks/use-trpc";
+import { toUserErrorMessage } from "@/lib/errors/client";
 import { MediaFilters } from "@/components/media/media-filters";
 import { MediaLibraryGrid } from "@/components/media/media-library-grid";
 import { MediaUploadDropzone } from "@/components/media/media-upload-dropzone";
@@ -20,8 +21,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MediaGridSkeleton } from "@/components/ui/loading-skeletons";
 import { PageHeader } from "@/components/ui/page-header";
-import { TableSkeleton } from "@/components/ui/loading-skeletons";
+import { RetryPanel } from "@/components/ui/retry-panel";
 
 export function MediaLibraryAdminScreen() {
   const trpc = useTRPC();
@@ -62,7 +64,8 @@ export function MediaLibraryAdminScreen() {
         setVideoProviderAssetId("");
         await refreshMedia();
       },
-      onError: (error) => toast.error(error.message),
+      onError: (error) =>
+        toast.error(toUserErrorMessage(error, "Unable to create external video entry.")),
     }),
   );
 
@@ -99,9 +102,14 @@ export function MediaLibraryAdminScreen() {
       <MediaFilters type={type} query={query} onTypeChange={setType} onQueryChange={setQuery} />
 
       {mediaQuery.isPending ? (
-        <TableSkeleton rows={7} />
+        <MediaGridSkeleton count={8} />
       ) : mediaQuery.isError ? (
-        <div className="surface-panel p-4 text-sm text-destructive">{mediaQuery.error.message}</div>
+        <RetryPanel
+          title="Unable to load media library"
+          error={mediaQuery.error}
+          onRetry={() => mediaQuery.refetch()}
+          retryLabel="Reload media"
+        />
       ) : (
         <MediaLibraryGrid items={items} />
       )}

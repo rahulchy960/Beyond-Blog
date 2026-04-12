@@ -14,9 +14,9 @@ import {
   WorkflowIcon,
 } from "lucide-react";
 import { useTRPC } from "@/hooks/use-trpc";
-import { EmptyState } from "@/components/ui/empty-state";
 import { MetricCard } from "@/components/ui/metric-card";
 import { MetricCardSkeletonGrid } from "@/components/ui/loading-skeletons";
+import { RetryPanel } from "@/components/ui/retry-panel";
 
 const METRIC_ICONS = [
   BookOpenTextIcon,
@@ -40,9 +40,10 @@ export function AdminStatsGrid() {
 
   if (dashboardStatsQuery.isError) {
     return (
-      <EmptyState
+      <RetryPanel
         title="Unable to load dashboard metrics"
-        description={dashboardStatsQuery.error.message || "An unexpected error occurred while loading metrics."}
+        error={dashboardStatsQuery.error}
+        onRetry={() => dashboardStatsQuery.refetch()}
       />
     );
   }
