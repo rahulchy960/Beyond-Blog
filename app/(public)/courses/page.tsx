@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { SiteContainer } from "@/components/layout/site-container";
 import { PublicCourseList } from "@/components/course/public-course-list";
@@ -6,11 +7,22 @@ import { ActiveFilterBar } from "@/components/discovery/active-filter-bar";
 import { FilterToolbar } from "@/components/discovery/filter-toolbar";
 import { GlobalSearchInput } from "@/components/discovery/global-search-input";
 import { getSearchParam, getSearchParamBoolean } from "@/lib/discovery/query";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 import { getServerCaller } from "@/server/api/caller";
 
 type CoursesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildPageMetadata({
+    path: "/courses",
+    title: "Courses",
+    description:
+      "Browse structured public courses on Beyond Blog with lesson modules and curated learning paths.",
+    ogType: "website",
+  });
+}
 
 export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   const params = await searchParams;

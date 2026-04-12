@@ -1,14 +1,49 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CONTENT_TYPE } from "@/lib/content/enums";
 import { PublicContentArticle } from "@/components/content/public-content-article";
+import { JsonLdScript } from "@/components/seo/json-ld-script";
 import { SiteContainer } from "@/components/layout/site-container";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
+import { buildPageMetadata, getSeoSettings } from "@/lib/seo/metadata";
+import { buildArticleSchema, buildBreadcrumbSchema } from "@/lib/seo/structured-data";
 import { getServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultItem } from "@/types/discovery";
 
 type ArticleDetailPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({
+  params,
+}: ArticleDetailPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const caller = await getServerCaller();
+
+  try {
+    const content = await caller.content.getPublishedBySlug({
+      type: CONTENT_TYPE.ARTICLE,
+      slug,
+    });
+
+    return buildPageMetadata({
+      path: `/articles/${content.slug}`,
+      title: content.seoTitle ?? content.title,
+      description: content.seoDescription ?? content.summary,
+      imageUrl: content.coverImage?.url ?? null,
+      ogType: "article",
+      keywords: content.tags.map((entry) => entry.tag.name),
+    });
+  } catch {
+    return buildPageMetadata({
+      path: `/articles/${slug}`,
+      title: "Article",
+      description: "Article page on Beyond Blog.",
+      noIndex: true,
+      ogType: "website",
+    });
+  }
+}
 
 export default async function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   const { slug } = await params;
@@ -17,23 +52,57 @@ export default async function ArticleDetailPage({ params }: ArticleDetailPagePro
   let relatedItems: DiscoveryResultItem[] = [];
 
   try {
-    content = await caller.content.getPublishedBySlug({
-      type: CONTENT_TYPE.ARTICLE,
-      slug,
-    });
-    relatedItems = (await caller.discovery.relatedByTarget({
-      targetType: "CONTENT",
-      slug,
-      limit: 4,
-    })).items;
+    [content, relatedItems] = await Promise.all([
+      caller.content.getPublishedBySlug({
+        type: CONTENT_TYPE.ARTICLE,
+        slug,
+      }),
+      caller.discovery
+        .relatedByTarget({
+          targetType: "CONTENT",
+          slug,
+          limit: 4,
+        })
+        .then((result) => result.items),
+    ]);
   } catch {
     notFound();
   }
 
+  const [seo, identity] = await Promise.all([
+    getSeoSettings(),
+    caller.profile.getPublicIdentity(),
+  ]);
+
+  const articleSchema = buildArticleSchema({
+    seo,
+    title: content.title,
+    description: content.summary ?? content.seoDescription,
+    path: `/articles/${content.slug}`,
+    publishedAt: content.publishedAt,
+    updatedAt: content.updatedAt,
+    imageUrl: content.coverImage?.url ?? null,
+    authorName: identity.name,
+    kind: "Article",
+  });
+  const breadcrumbSchema = buildBreadcrumbSchema(
+    [
+      { name: "Home", path: "/" },
+      { name: "Articles", path: "/articles" },
+      { name: content.title, path: `/articles/${content.slug}` },
+    ],
+    seo,
+  );
+
   return (
     <SiteContainer>
+      <JsonLdScript data={[articleSchema, breadcrumbSchema]} />
       <AnimatedPageWrapper>
-        <PublicContentArticle type={CONTENT_TYPE.ARTICLE} content={content} relatedItems={relatedItems} />
+        <PublicContentArticle
+          type={CONTENT_TYPE.ARTICLE}
+          content={content}
+          relatedItems={relatedItems}
+        />
       </AnimatedPageWrapper>
     </SiteContainer>
   );

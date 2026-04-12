@@ -126,6 +126,7 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
   const titleValue = useWatch({ control: form.control, name: "title" }) ?? "";
   const slugValue = useWatch({ control: form.control, name: "slug" }) ?? "";
   const bodyJsonValue = useWatch({ control: form.control, name: "bodyJson" });
+  const summaryValue = useWatch({ control: form.control, name: "summary" }) ?? "";
   const seoTitleValue = useWatch({ control: form.control, name: "seoTitle" }) ?? "";
   const seoDescriptionValue = useWatch({ control: form.control, name: "seoDescription" }) ?? "";
   const publishStatusValue =
@@ -353,6 +354,8 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
                 seoDescription={seoDescriptionValue}
                 onSeoTitleChange={(value) => form.setValue("seoTitle", value)}
                 onSeoDescriptionChange={(value) => form.setValue("seoDescription", value)}
+                titleFallback={titleValue}
+                descriptionFallback={summaryValue}
                 showHeader={false}
               />
             </CardContent>

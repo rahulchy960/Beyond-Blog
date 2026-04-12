@@ -1,14 +1,39 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { SiteContainer } from "@/components/layout/site-container";
 import { SearchResultsShell } from "@/components/discovery/search-results-shell";
 import { TaxonomyHeader } from "@/components/discovery/taxonomy-header";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 import { getServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultItem } from "@/types/discovery";
 
 type TagPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({ params }: TagPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const caller = await getServerCaller();
+
+  try {
+    const data = await caller.discovery.getTagPage({ slug, limit: 1 });
+    return buildPageMetadata({
+      path: `/tags/${data.tag.slug}`,
+      title: `Tag: ${data.tag.name}`,
+      description: `Explore content tagged with ${data.tag.name} on Beyond Blog.`,
+      ogType: "website",
+    });
+  } catch {
+    return buildPageMetadata({
+      path: `/tags/${slug}`,
+      title: "Tag",
+      description: "Tag archive on Beyond Blog.",
+      noIndex: true,
+      ogType: "website",
+    });
+  }
+}
 
 export default async function TagPage({ params }: TagPageProps) {
   const { slug } = await params;
@@ -74,4 +99,3 @@ export default async function TagPage({ params }: TagPageProps) {
     </div>
   );
 }
-

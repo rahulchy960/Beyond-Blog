@@ -36,6 +36,7 @@ export const adminNavigation: AdminNavItem[] = [
   { title: "Categories", href: "/admin/categories", icon: ShapesIcon },
   { title: "Tags", href: "/admin/tags", icon: TagsIcon },
   { title: "Profile & Footer", href: "/admin/settings/profile", icon: Settings2 },
+  { title: "SEO Settings", href: "/admin/settings/seo", icon: Settings2 },
   { title: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
 ];
 

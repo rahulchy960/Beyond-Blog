@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { SiteContainer } from "@/components/layout/site-container";
 import { GlobalSearchInput } from "@/components/discovery/global-search-input";
@@ -5,6 +6,7 @@ import { SearchResultsShell } from "@/components/discovery/search-results-shell"
 import { Badge } from "@/components/ui/badge";
 import { discoveryScopeOptions } from "@/lib/discovery/constants";
 import { getSearchParam } from "@/lib/discovery/query";
+import { buildPageMetadata, getSeoSettings } from "@/lib/seo/metadata";
 import { getServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultType } from "@/types/discovery";
 
@@ -19,6 +21,25 @@ const searchTypeOrder: DiscoveryResultType[] = [
   "COURSE",
   "QUIZ",
 ];
+
+export async function generateMetadata({
+  searchParams,
+}: SearchPageProps): Promise<Metadata> {
+  const params = await searchParams;
+  const query = getSearchParam(params.q).trim();
+  const seo = await getSeoSettings();
+
+  return buildPageMetadata({
+    path: "/search",
+    title: query.length > 0 ? `Search results for "${query}"` : "Search",
+    description:
+      query.length > 0
+        ? `Search Beyond Blog for ${query} across journals, articles, projects, courses, and quizzes.`
+        : "Search journals, articles, projects, courses, and quizzes across Beyond Blog.",
+    noIndex: seo.noIndexSearchPage,
+    ogType: "website",
+  });
+}
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
@@ -57,7 +78,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <div className="flex flex-wrap items-center gap-2">
             {searchTypeOrder.map((type) => (
               <Badge key={type} variant="secondary">
-                {type.toLowerCase()} · {results.counts[type]}
+                {type.toLowerCase()} - {results.counts[type]}
               </Badge>
             ))}
           </div>

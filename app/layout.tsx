@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Lora, Plus_Jakarta_Sans, Roboto_Mono } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import { Toaster } from "@/components/ui/sonner";
+import { buildBaseMetadata } from "@/lib/seo/metadata";
 import "./globals.css";
 
 const sans = Plus_Jakarta_Sans({
@@ -22,14 +23,9 @@ const mono = Roboto_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "Beyond Blog",
-    template: "%s | Beyond Blog",
-  },
-  description:
-    "Beyond Blog: journals, articles, projects, media, and public quizzes.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return buildBaseMetadata();
+}
 
 export default async function RootLayout({
   children,

@@ -596,6 +596,8 @@ export function CourseEditorForm({ mode, courseId }: CourseEditorFormProps) {
                 seoDescription={seoDescriptionValue}
                 onSeoTitleChange={(value) => form.setValue("seoTitle", value)}
                 onSeoDescriptionChange={(value) => form.setValue("seoDescription", value)}
+                titleFallback={titleValue}
+                descriptionFallback={form.getValues("summary") ?? ""}
                 showHeader={false}
               />
             </CardContent>

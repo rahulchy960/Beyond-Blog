@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { CONTENT_TYPE } from "@/lib/content/enums";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { PublicContentList } from "@/components/content/public-content-list";
@@ -6,11 +7,22 @@ import { ActiveFilterBar } from "@/components/discovery/active-filter-bar";
 import { FilterToolbar } from "@/components/discovery/filter-toolbar";
 import { GlobalSearchInput } from "@/components/discovery/global-search-input";
 import { getSearchParam, getSearchParamBoolean } from "@/lib/discovery/query";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 import { getServerCaller } from "@/server/api/caller";
 
 type ProjectsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildPageMetadata({
+    path: "/projects",
+    title: "Projects",
+    description:
+      "Discover published project notes and implementation write-ups on Beyond Blog.",
+    ogType: "website",
+  });
+}
 
 export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
   const params = await searchParams;

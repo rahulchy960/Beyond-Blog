@@ -1,14 +1,41 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { SiteContainer } from "@/components/layout/site-container";
 import { SearchResultsShell } from "@/components/discovery/search-results-shell";
 import { TaxonomyHeader } from "@/components/discovery/taxonomy-header";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 import { getServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultItem } from "@/types/discovery";
 
 type CategoryPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const caller = await getServerCaller();
+
+  try {
+    const data = await caller.discovery.getCategoryPage({ slug, limit: 1 });
+    return buildPageMetadata({
+      path: `/categories/${data.category.slug}`,
+      title: data.category.name,
+      description:
+        data.category.description ??
+        `Browse published content in ${data.category.name} on Beyond Blog.`,
+      ogType: "website",
+    });
+  } catch {
+    return buildPageMetadata({
+      path: `/categories/${slug}`,
+      title: "Category",
+      description: "Category archive on Beyond Blog.",
+      noIndex: true,
+      ogType: "website",
+    });
+  }
+}
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
@@ -74,4 +101,3 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     </div>
   );
 }
-

@@ -1,8 +1,20 @@
+import type { Metadata } from "next";
 import { SignIn } from "@clerk/nextjs";
 import { LockKeyholeIcon } from "lucide-react";
 import { SiteContainer } from "@/components/layout/site-container";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
+import { buildPageMetadata } from "@/lib/seo/metadata";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildPageMetadata({
+    path: "/sign-in",
+    title: "Admin Sign-In",
+    description: "Secure admin sign-in for Beyond Blog.",
+    noIndex: true,
+    ogType: "website",
+  });
+}
 
 export default function SignInPage() {
   return (

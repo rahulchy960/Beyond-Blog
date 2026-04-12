@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { MediaPickerDialog } from "@/components/media/media-picker-dialog";
 import { MediaPreview } from "@/components/media/media-preview";
+import { SeoFields } from "@/components/content/seo-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -137,6 +138,10 @@ function getLinkType(values: Pick<QuizFormValues, "contentId" | "courseId" | "co
   if (values.courseId) return "course";
   if (values.contentId) return "content";
   return "none";
+}
+
+function asString(value: unknown) {
+  return typeof value === "string" ? value : "";
 }
 
 export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
@@ -351,8 +356,11 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
 
   }, [form, quizQuery.data]);
 
-  const watchedTitle = useWatch({ control: form.control, name: "title" }) ?? "";
+  const watchedTitle = asString(useWatch({ control: form.control, name: "title" }));
+  const watchedDescription = asString(useWatch({ control: form.control, name: "description" }));
   const watchedSlug = useWatch({ control: form.control, name: "slug" }) ?? "";
+  const watchedSeoTitle = asString(useWatch({ control: form.control, name: "seoTitle" }));
+  const watchedSeoDescription = asString(useWatch({ control: form.control, name: "seoDescription" }));
   const watchedStatus = useWatch({ control: form.control, name: "status" }) ?? QUIZ_STATUS.DRAFT;
   const watchedContentId = useWatch({ control: form.control, name: "contentId" }) ?? null;
   const watchedCourseId = useWatch({ control: form.control, name: "courseId" }) ?? null;
@@ -752,16 +760,15 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
                 )}
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="seoTitle">SEO Title</Label>
-                  <Input id="seoTitle" {...form.register("seoTitle")} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="seoDescription">SEO Description</Label>
-                  <Input id="seoDescription" {...form.register("seoDescription")} />
-                </div>
-              </div>
+              <SeoFields
+                seoTitle={watchedSeoTitle}
+                seoDescription={watchedSeoDescription}
+                onSeoTitleChange={(value) => form.setValue("seoTitle", value)}
+                onSeoDescriptionChange={(value) => form.setValue("seoDescription", value)}
+                titleFallback={watchedTitle}
+                descriptionFallback={watchedDescription}
+                showHeader={false}
+              />
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">

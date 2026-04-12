@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRightIcon, SparklesIcon } from "lucide-react";
 import { SiteContainer } from "@/components/layout/site-container";
@@ -10,23 +11,50 @@ import { DiscoverySection } from "@/components/discovery/discovery-section";
 import { GlobalSearchInput } from "@/components/discovery/global-search-input";
 import { SearchResultCard } from "@/components/discovery/search-result-card";
 import { Badge } from "@/components/ui/badge";
+import { JsonLdScript } from "@/components/seo/json-ld-script";
+import { buildPageMetadata, getSeoSettings } from "@/lib/seo/metadata";
+import { buildPersonSchema, buildWebSiteSchema } from "@/lib/seo/structured-data";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { getServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultItem } from "@/types/discovery";
 
+export async function generateMetadata(): Promise<Metadata> {
+  return buildPageMetadata({
+    path: "/",
+    title: null,
+    description:
+      "Discover journals, articles, projects, courses, and quizzes published on Beyond Blog.",
+    ogType: "website",
+  });
+}
+
 export default async function HomePage() {
   const caller = await getServerCaller();
-  const home = await caller.discovery.homepageSections({
-    featuredLimit: 4,
-    recentLimit: 10,
-  });
+  const [home, identity, profile, seo] = await Promise.all([
+    caller.discovery.homepageSections({
+      featuredLimit: 4,
+      recentLimit: 10,
+    }),
+    caller.profile.getPublicIdentity(),
+    caller.profile.getPublicFooterProfile(),
+    getSeoSettings(),
+  ]);
 
   const featuredLead = home.featuredContent[0] ?? null;
   const featuredRest = home.featuredContent.slice(1);
+  const webSiteSchema = buildWebSiteSchema(seo);
+  const personSchema = buildPersonSchema(seo, {
+    name: identity.name,
+    description: profile?.bio ?? null,
+    imageUrl: identity.imageUrl,
+    email: profile?.email ?? null,
+    websiteUrl: profile?.websiteUrl ?? null,
+  });
 
   return (
     <div className="py-10 md:py-14">
+      <JsonLdScript data={[webSiteSchema, personSchema]} />
       <SiteContainer className="space-y-16 md:space-y-20">
         <AnimatedPageWrapper>
           <section className="surface-panel-strong relative overflow-hidden px-6 py-8 md:px-9 md:py-10">
@@ -170,4 +198,3 @@ export default async function HomePage() {
     </div>
   );
 }
-

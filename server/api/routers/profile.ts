@@ -2,6 +2,8 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 import { MEDIA_TYPE } from "@/lib/content/enums";
 import { adminProfileSettingsInputSchema, normalizeOptionalText } from "@/lib/profile/schemas";
+import { defaultSeoSettings, mergeSeoSettings } from "@/lib/seo/config";
+import { adminSeoSettingsInputSchema } from "@/lib/seo/schemas";
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
 import { createAuditLog } from "@/server/audit/log";
 
@@ -48,6 +50,60 @@ function isMissingAdminProfileTableError(error: unknown) {
   }
 
   return false;
+}
+
+function isMissingSiteSettingTableError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2021") {
+      return true;
+    }
+
+    if (error.code === "P2010" && String(error.message).includes("SiteSetting")) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function mergeSocialLinksWithSeo(
+  existingSocialLinks: unknown,
+  input: {
+    titleTemplate: string | null;
+    defaultDescription: string | null;
+    siteUrl: string | null;
+    defaultOgImageUrl: string | null;
+    noIndexSearchPage: boolean;
+    allowIndexing: boolean;
+    twitterHandle: string | null;
+  },
+) {
+  const base = toRecord(existingSocialLinks) ?? {};
+  const existingSeo = toRecord(base.seo) ?? {};
+
+  const nextSeo = {
+    ...existingSeo,
+    titleTemplate: normalizeOptionalText(input.titleTemplate),
+    defaultDescription: normalizeOptionalText(input.defaultDescription),
+    siteUrl: normalizeOptionalText(input.siteUrl),
+    defaultOgImageUrl: normalizeOptionalText(input.defaultOgImageUrl),
+    noIndexSearchPage: input.noIndexSearchPage,
+    allowIndexing: input.allowIndexing,
+    twitterHandle: normalizeOptionalText(input.twitterHandle),
+  };
+
+  return {
+    ...base,
+    seo: nextSeo,
+  };
 }
 
 export const profileRouter = createTRPCRouter({
@@ -273,6 +329,171 @@ export const profileRouter = createTRPCRouter({
       name: profileName ?? fallbackName,
       imageUrl: profileImageUrl ?? admin.imageUrl,
     };
+  }),
+
+  getSeoSettings: adminProcedure.query(async ({ ctx }) => {
+    try {
+      const setting = await ctx.db.siteSetting.upsert({
+        where: { singletonKey: "SITE_SETTINGS" },
+        update: {},
+        create: {
+          singletonKey: "SITE_SETTINGS",
+          siteTitle: defaultSeoSettings.siteTitle,
+        },
+        select: {
+          id: true,
+          siteTitle: true,
+          siteSubtitle: true,
+          socialLinks: true,
+          updatedAt: true,
+        },
+      });
+
+      const resolved = mergeSeoSettings({
+        siteTitle: setting.siteTitle,
+        siteSubtitle: setting.siteSubtitle,
+        socialLinks: setting.socialLinks,
+      });
+
+      return {
+        id: setting.id,
+        siteTitle: resolved.siteTitle,
+        titleTemplate: resolved.titleTemplate,
+        defaultDescription: resolved.defaultDescription,
+        siteUrl: resolved.siteUrl,
+        defaultOgImageUrl: resolved.defaultOgImageUrl,
+        noIndexSearchPage: resolved.noIndexSearchPage,
+        allowIndexing: resolved.allowIndexing,
+        twitterHandle: resolved.twitterHandle,
+        updatedAt: setting.updatedAt,
+      };
+    } catch (error) {
+      if (isMissingSiteSettingTableError(error)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Site settings table is missing. Run Prisma migration before using SEO settings.",
+        });
+      }
+
+      throw error;
+    }
+  }),
+
+  updateSeoSettings: adminProcedure
+    .input(adminSeoSettingsInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const current = await ctx.db.siteSetting.findUnique({
+          where: { singletonKey: "SITE_SETTINGS" },
+          select: {
+            socialLinks: true,
+          },
+        });
+
+        const socialLinks = mergeSocialLinksWithSeo(current?.socialLinks, {
+          titleTemplate: input.titleTemplate ?? null,
+          defaultDescription: input.defaultDescription ?? null,
+          siteUrl: input.siteUrl ?? null,
+          defaultOgImageUrl: input.defaultOgImageUrl ?? null,
+          noIndexSearchPage: input.noIndexSearchPage,
+          allowIndexing: input.allowIndexing,
+          twitterHandle: input.twitterHandle ?? null,
+        });
+
+        const updated = await ctx.db.siteSetting.upsert({
+          where: { singletonKey: "SITE_SETTINGS" },
+          update: {
+            siteTitle: input.siteTitle.trim(),
+            socialLinks,
+          },
+          create: {
+            singletonKey: "SITE_SETTINGS",
+            siteTitle: input.siteTitle.trim(),
+            socialLinks,
+          },
+          select: {
+            id: true,
+            siteTitle: true,
+            siteSubtitle: true,
+            socialLinks: true,
+            updatedAt: true,
+          },
+        });
+
+        await createAuditLog({
+          db: ctx.db,
+          adminUserId: ctx.adminUser.id,
+          action: "settings.seo.update",
+          entityType: "SITE_SETTING",
+          entityId: updated.id,
+          metadata: {
+            siteTitle: updated.siteTitle,
+            allowIndexing: input.allowIndexing,
+            noIndexSearchPage: input.noIndexSearchPage,
+          },
+        });
+
+        const resolved = mergeSeoSettings({
+          siteTitle: updated.siteTitle,
+          siteSubtitle: updated.siteSubtitle,
+          socialLinks: updated.socialLinks,
+        });
+
+        return {
+          id: updated.id,
+          siteTitle: resolved.siteTitle,
+          titleTemplate: resolved.titleTemplate,
+          defaultDescription: resolved.defaultDescription,
+          siteUrl: resolved.siteUrl,
+          defaultOgImageUrl: resolved.defaultOgImageUrl,
+          noIndexSearchPage: resolved.noIndexSearchPage,
+          allowIndexing: resolved.allowIndexing,
+          twitterHandle: resolved.twitterHandle,
+          updatedAt: updated.updatedAt,
+        };
+      } catch (error) {
+        if (isMissingSiteSettingTableError(error)) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Site settings table is missing. Run Prisma migration before updating SEO settings.",
+          });
+        }
+
+        throw error;
+      }
+    }),
+
+  getPublicSeoSettings: publicProcedure.query(async ({ ctx }) => {
+    try {
+      const setting = await ctx.db.siteSetting.findUnique({
+        where: { singletonKey: "SITE_SETTINGS" },
+        select: {
+          siteTitle: true,
+          siteSubtitle: true,
+          socialLinks: true,
+        },
+      });
+
+      if (!setting) {
+        return {
+          siteTitle: defaultSeoSettings.siteTitle,
+          siteSubtitle: null as string | null,
+          socialLinks: null as Prisma.JsonValue | null,
+        };
+      }
+
+      return setting;
+    } catch (error) {
+      if (isMissingSiteSettingTableError(error)) {
+        return {
+          siteTitle: defaultSeoSettings.siteTitle,
+          siteSubtitle: null as string | null,
+          socialLinks: null as Prisma.JsonValue | null,
+        };
+      }
+
+      throw error;
+    }
   }),
 });
 

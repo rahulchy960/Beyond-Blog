@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { SiteContainer } from "@/components/layout/site-container";
 import { PublicQuizList } from "@/components/quiz/public-quiz-list";
@@ -5,11 +6,22 @@ import { ActiveFilterBar } from "@/components/discovery/active-filter-bar";
 import { FilterToolbar } from "@/components/discovery/filter-toolbar";
 import { GlobalSearchInput } from "@/components/discovery/global-search-input";
 import { getSearchParam, getSearchParamBoolean } from "@/lib/discovery/query";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 import { getServerCaller } from "@/server/api/caller";
 
 type QuizzesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildPageMetadata({
+    path: "/quizzes",
+    title: "Quizzes",
+    description:
+      "Take public quizzes on Beyond Blog and review curated assessment content without signing in.",
+    ogType: "website",
+  });
+}
 
 export default async function QuizzesPage({ searchParams }: QuizzesPageProps) {
   const params = await searchParams;
