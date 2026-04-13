@@ -5,19 +5,24 @@ import { SiteContainer } from "@/components/layout/site-container";
 import { SearchResultsShell } from "@/components/discovery/search-results-shell";
 import { TaxonomyHeader } from "@/components/discovery/taxonomy-header";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { getServerCaller } from "@/server/api/caller";
+import { getPublicServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultItem } from "@/types/discovery";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { DEFAULT_PUBLIC_PAGE_SIZE, parsePageParam } from "@/lib/performance/pagination";
+
+export const revalidate = 120;
 
 type CategoryPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
 
   try {
-    const data = await caller.discovery.getCategoryPage({ slug, limit: 1 });
+    const data = await caller.discovery.getCategoryPage({ slug, page: 1, pageSize: 1 });
     return buildPageMetadata({
       path: `/categories/${data.category.slug}`,
       title: data.category.name,
@@ -37,13 +42,17 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   }
 }
 
-export default async function CategoryPage({ params }: CategoryPageProps) {
+export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const { slug } = await params;
-  const caller = await getServerCaller();
+  const query = (await searchParams) ?? {};
+  const rawPage = Array.isArray(query.page) ? query.page[0] : query.page;
+  const page = parsePageParam(rawPage, 1);
+  const pageSize = DEFAULT_PUBLIC_PAGE_SIZE;
+  const caller = await getPublicServerCaller();
 
   let data: Awaited<ReturnType<typeof caller.discovery.getCategoryPage>>;
   try {
-    data = await caller.discovery.getCategoryPage({ slug, limit: 60 });
+    data = await caller.discovery.getCategoryPage({ slug, page, pageSize });
   } catch {
     notFound();
   }
@@ -96,8 +105,20 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
         <AnimatedPageWrapper delay={0.04}>
           <SearchResultsShell items={items} />
+          <PaginationControls
+            className="mt-5"
+            page={data.pageInfo.page}
+            pageSize={data.pageInfo.pageSize}
+            totalItems={data.pageInfo.total}
+            buildHref={(nextPage) =>
+              nextPage > 1
+                ? `/categories/${data.category.slug}?page=${nextPage}`
+                : `/categories/${data.category.slug}`
+            }
+          />
         </AnimatedPageWrapper>
       </SiteContainer>
     </div>
   );
 }
+

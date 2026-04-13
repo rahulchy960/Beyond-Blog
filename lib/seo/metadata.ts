@@ -1,6 +1,6 @@
 import { cache } from "react";
 import type { Metadata } from "next";
-import { getServerCaller } from "@/server/api/caller";
+import { getPublicServerCaller } from "@/server/api/caller";
 import { defaultSeoSettings, mergeSeoSettings, toAbsoluteUrl, type SeoSettingsState } from "@/lib/seo/config";
 
 type BuildMetadataInput = {
@@ -24,7 +24,7 @@ function toMetadataImageUrl(value: string | null | undefined, siteUrl: string) {
 
 const getSeoSettingsCached = cache(async (): Promise<SeoSettingsState> => {
   try {
-    const caller = await getServerCaller();
+    const caller = await getPublicServerCaller();
     const site = await caller.profile.getPublicSeoSettings();
     if (!site) {
       return defaultSeoSettings;
@@ -145,3 +145,4 @@ export async function buildPageMetadata(input: BuildMetadataInput): Promise<Meta
       : undefined,
   };
 }
+

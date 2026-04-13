@@ -35,18 +35,19 @@ function isLegacyInteractionSchemaError(error: unknown) {
     typeof (error as { message?: unknown }).message === "string"
       ? (error as { message: string }).message
       : String(error ?? "");
+  const lowerMessage = message.toLowerCase();
   const code =
     typeof error === "object" && error !== null && "code" in error
       ? String((error as { code?: unknown }).code ?? "")
       : "";
 
-  if (message.includes('invalid input value for enum "CommentStatus"')) {
+  if (lowerMessage.includes('invalid input value for enum "commentstatus"')) {
     return true;
   }
   if (
-    message.includes("does not exist in the current database") ||
-    message.includes("The column `(not available)` does not exist") ||
-    (message.includes("column") && message.includes("does not exist"))
+    lowerMessage.includes("does not exist in the current database") ||
+    lowerMessage.includes("the column `(not available)` does not exist") ||
+    (lowerMessage.includes("column") && lowerMessage.includes("does not exist"))
   ) {
     return true;
   }
@@ -525,75 +526,81 @@ export const interactionRouter = createTRPCRouter({
     .input(adminListCommentsInputSchema)
     .query(async ({ ctx, input }) => {
       try {
-        const comments = await ctx.db.comment.findMany({
-          where: {
-            ...(input.status ? { status: input.status } : {}),
-            ...(input.targetType ? { targetType: input.targetType } : {}),
-            ...(input.query
-              ? {
-                  OR: [
-                    {
-                      guestName: {
-                        contains: input.query,
-                        mode: "insensitive",
-                      },
+        const where = {
+          ...(input.status ? { status: input.status } : {}),
+          ...(input.targetType ? { targetType: input.targetType } : {}),
+          ...(input.query
+            ? {
+                OR: [
+                  {
+                    guestName: {
+                      contains: input.query,
+                      mode: "insensitive" as const,
                     },
-                    {
-                      guestEmail: {
-                        contains: input.query,
-                        mode: "insensitive",
-                      },
+                  },
+                  {
+                    guestEmail: {
+                      contains: input.query,
+                      mode: "insensitive" as const,
                     },
-                    {
-                      body: {
-                        contains: input.query,
-                        mode: "insensitive",
-                      },
+                  },
+                  {
+                    body: {
+                      contains: input.query,
+                      mode: "insensitive" as const,
                     },
-                  ],
-                }
-              : {}),
-          },
-          orderBy: [{ createdAt: "desc" }],
-          take: input.limit,
-          include: {
-            content: {
-              select: {
-                id: true,
-                title: true,
-                slug: true,
-                type: true,
+                  },
+                ],
+              }
+            : {}),
+        };
+
+        const [comments, total] = await Promise.all([
+          ctx.db.comment.findMany({
+            where,
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+            include: {
+              content: {
+                select: {
+                  id: true,
+                  title: true,
+                  slug: true,
+                  type: true,
+                },
               },
-            },
-            course: {
-              select: {
-                id: true,
-                title: true,
-                slug: true,
+              course: {
+                select: {
+                  id: true,
+                  title: true,
+                  slug: true,
+                },
               },
-            },
-            courseLesson: {
-              select: {
-                id: true,
-                title: true,
-                course: {
-                  select: {
-                    slug: true,
-                    title: true,
+              courseLesson: {
+                select: {
+                  id: true,
+                  title: true,
+                  course: {
+                    select: {
+                      slug: true,
+                      title: true,
+                    },
                   },
                 },
               },
-            },
-            moderatedByAdmin: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
+              moderatedByAdmin: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                },
               },
             },
-          },
-        });
+          }),
+          ctx.db.comment.count({ where }),
+        ]);
 
         return {
           items: comments.map((comment) => ({
@@ -617,6 +624,9 @@ export const interactionRouter = createTRPCRouter({
                 }
               : null,
           })),
+          total,
+          page: input.page,
+          pageSize: input.pageSize,
         };
       } catch (error) {
         const preconditionError = toPreconditionError(error);
@@ -999,10 +1009,11 @@ export const interactionRouter = createTRPCRouter({
         typeof (error as { message?: unknown }).message === "string"
           ? (error as { message: string }).message
           : String(error ?? "");
+      const lowerMessage = message.toLowerCase();
       if (
-        message.includes("Invalid `ctx.db.comment.findMany()` invocation") ||
-        message.includes("does not exist in the current database") ||
-        message.includes("The column `(not available)` does not exist")
+        lowerMessage.includes("invalid `ctx.db.comment.findmany()` invocation") ||
+        lowerMessage.includes("does not exist in the current database") ||
+        lowerMessage.includes("the column `(not available)` does not exist")
       ) {
         return fallback;
       }

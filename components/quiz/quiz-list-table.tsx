@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { SearchIcon, SparklesIcon } from "lucide-react";
 import { useTRPC } from "@/hooks/use-trpc";
@@ -17,18 +17,27 @@ import { Input } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/loading-skeletons";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { buttonVariants } from "@/lib/ui/button-variants";
+import { DataPagination } from "@/components/ui/data-pagination";
+import { queryStaleTimes } from "@/lib/trpc/query-presets";
 
 export function QuizListTable() {
   const trpc = useTRPC();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | QuizStatus>("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+  const deferredQuery = useMemo(() => query.trim(), [query]);
 
   const listQuery = useQuery(
     trpc.quiz.listForAdmin.queryOptions({
-      query: query || undefined,
+      query: deferredQuery || undefined,
       status: status === "all" ? undefined : status,
       sort: "updated",
-      limit: 100,
+      page,
+      pageSize,
+    }, {
+      placeholderData: keepPreviousData,
+      staleTime: queryStaleTimes.adminLists,
     }),
   );
 
@@ -41,13 +50,22 @@ export function QuizListTable() {
           <SearchIcon className="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
           <Input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
             className="pl-10"
             placeholder="Search quizzes by title, slug, or description"
           />
         </div>
 
-        <Select value={status} onValueChange={(value) => setStatus((value ?? "all") as "all" | QuizStatus)}>
+        <Select
+          value={status}
+          onValueChange={(value) => {
+            setStatus((value ?? "all") as "all" | QuizStatus);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-[11.5rem]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
@@ -128,6 +146,14 @@ export function QuizListTable() {
           ))}
         </div>
       )}
+
+      <DataPagination
+        page={listQuery.data?.page ?? page}
+        pageSize={listQuery.data?.pageSize ?? pageSize}
+        totalItems={listQuery.data?.total ?? 0}
+        disabled={listQuery.isFetching}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

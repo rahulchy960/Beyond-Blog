@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { SearchIcon, SparklesIcon } from "lucide-react";
 import Link from "next/link";
@@ -18,19 +18,28 @@ import { Input } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/loading-skeletons";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataPagination } from "@/components/ui/data-pagination";
+import { queryStaleTimes } from "@/lib/trpc/query-presets";
 
 export function CourseListTable() {
   const trpc = useTRPC();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | CourseStatus>("all");
   const [featured, setFeatured] = useState<"all" | "featured" | "not_featured">("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+  const deferredQuery = useMemo(() => query.trim(), [query]);
 
   const listQuery = useQuery(
     trpc.course.listForAdmin.queryOptions({
-      query: query || undefined,
+      query: deferredQuery || undefined,
       status: status === "all" ? undefined : status,
       featured,
-      limit: 80,
+      page,
+      pageSize,
+    }, {
+      placeholderData: keepPreviousData,
+      staleTime: queryStaleTimes.adminLists,
     }),
   );
 
@@ -43,13 +52,22 @@ export function CourseListTable() {
           <SearchIcon className="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
           <Input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
             placeholder="Search courses by title, slug, or summary"
             className="pl-10"
           />
         </div>
 
-        <Select value={status} onValueChange={(value) => setStatus((value ?? "all") as "all" | CourseStatus)}>
+        <Select
+          value={status}
+          onValueChange={(value) => {
+            setStatus((value ?? "all") as "all" | CourseStatus);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-[11.5rem]">
             <SelectValue placeholder="Filter status" />
           </SelectTrigger>
@@ -63,7 +81,10 @@ export function CourseListTable() {
 
         <Select
           value={featured}
-          onValueChange={(value) => setFeatured((value ?? "all") as "all" | "featured" | "not_featured")}
+          onValueChange={(value) => {
+            setFeatured((value ?? "all") as "all" | "featured" | "not_featured");
+            setPage(1);
+          }}
         >
           <SelectTrigger className="w-[11.5rem]">
             <SelectValue placeholder="Filter featured" />
@@ -161,6 +182,14 @@ export function CourseListTable() {
           </Table>
         </div>
       )}
+
+      <DataPagination
+        page={listQuery.data?.page ?? page}
+        pageSize={listQuery.data?.pageSize ?? pageSize}
+        totalItems={listQuery.data?.total ?? 0}
+        disabled={listQuery.isFetching}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

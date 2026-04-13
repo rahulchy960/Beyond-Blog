@@ -5,19 +5,24 @@ import { SiteContainer } from "@/components/layout/site-container";
 import { SearchResultsShell } from "@/components/discovery/search-results-shell";
 import { TaxonomyHeader } from "@/components/discovery/taxonomy-header";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { getServerCaller } from "@/server/api/caller";
+import { getPublicServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultItem } from "@/types/discovery";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { DEFAULT_PUBLIC_PAGE_SIZE, parsePageParam } from "@/lib/performance/pagination";
+
+export const revalidate = 120;
 
 type TagPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export async function generateMetadata({ params }: TagPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
 
   try {
-    const data = await caller.discovery.getTagPage({ slug, limit: 1 });
+    const data = await caller.discovery.getTagPage({ slug, page: 1, pageSize: 1 });
     return buildPageMetadata({
       path: `/tags/${data.tag.slug}`,
       title: `Tag: ${data.tag.name}`,
@@ -35,13 +40,17 @@ export async function generateMetadata({ params }: TagPageProps): Promise<Metada
   }
 }
 
-export default async function TagPage({ params }: TagPageProps) {
+export default async function TagPage({ params, searchParams }: TagPageProps) {
   const { slug } = await params;
-  const caller = await getServerCaller();
+  const query = (await searchParams) ?? {};
+  const rawPage = Array.isArray(query.page) ? query.page[0] : query.page;
+  const page = parsePageParam(rawPage, 1);
+  const pageSize = DEFAULT_PUBLIC_PAGE_SIZE;
+  const caller = await getPublicServerCaller();
 
   let data: Awaited<ReturnType<typeof caller.discovery.getTagPage>>;
   try {
-    data = await caller.discovery.getTagPage({ slug, limit: 60 });
+    data = await caller.discovery.getTagPage({ slug, page, pageSize });
   } catch {
     notFound();
   }
@@ -94,8 +103,18 @@ export default async function TagPage({ params }: TagPageProps) {
 
         <AnimatedPageWrapper delay={0.04}>
           <SearchResultsShell items={items} />
+          <PaginationControls
+            className="mt-5"
+            page={data.pageInfo.page}
+            pageSize={data.pageInfo.pageSize}
+            totalItems={data.pageInfo.total}
+            buildHref={(nextPage) =>
+              nextPage > 1 ? `/tags/${data.tag.slug}?page=${nextPage}` : `/tags/${data.tag.slug}`
+            }
+          />
         </AnimatedPageWrapper>
       </SiteContainer>
     </div>
   );
 }
+

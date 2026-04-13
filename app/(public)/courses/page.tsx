@@ -8,7 +8,11 @@ import { FilterToolbar } from "@/components/discovery/filter-toolbar";
 import { GlobalSearchInput } from "@/components/discovery/global-search-input";
 import { getSearchParam, getSearchParamBoolean } from "@/lib/discovery/query";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { getServerCaller } from "@/server/api/caller";
+import { getPublicServerCaller } from "@/server/api/caller";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { DEFAULT_PUBLIC_PAGE_SIZE, parsePageParam } from "@/lib/performance/pagination";
+
+export const revalidate = 120;
 
 type CoursesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -30,8 +34,10 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   const difficulty = getSearchParam(params.difficulty).trim();
   const sort = getSearchParam(params.sort) === "oldest" ? "oldest" : "newest";
   const featuredOnly = getSearchParamBoolean(params.featured);
+  const page = parsePageParam(getSearchParam(params.page), 1);
+  const pageSize = DEFAULT_PUBLIC_PAGE_SIZE;
 
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
   const data = await caller.discovery.listCourses({
     query: query || undefined,
     difficulty:
@@ -40,7 +46,8 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
         : undefined,
     featuredOnly: featuredOnly || undefined,
     sort,
-    limit: 60,
+    page,
+    pageSize,
   });
   const items = data.items;
 
@@ -50,6 +57,18 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
     if (difficulty && key !== "difficulty") next.set("difficulty", difficulty);
     if (featuredOnly && key !== "featured") next.set("featured", "1");
     if (sort !== "newest" && key !== "sort") next.set("sort", sort);
+    if (page > 1 && key !== "page") next.set("page", String(page));
+    const suffix = next.toString();
+    return suffix.length ? `/courses?${suffix}` : "/courses";
+  };
+
+  const buildPageHref = (nextPage: number) => {
+    const next = new URLSearchParams();
+    if (query) next.set("q", query);
+    if (difficulty) next.set("difficulty", difficulty);
+    if (featuredOnly) next.set("featured", "1");
+    if (sort !== "newest") next.set("sort", sort);
+    if (nextPage > 1) next.set("page", String(nextPage));
     const suffix = next.toString();
     return suffix.length ? `/courses?${suffix}` : "/courses";
   };
@@ -96,9 +115,17 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
         </AnimatedPageWrapper>
         <AnimatedPageWrapper delay={0.04}>
           <PublicCourseList items={items} />
+          <PaginationControls
+            className="mt-5"
+            page={data.pageInfo.page}
+            pageSize={data.pageInfo.pageSize}
+            totalItems={data.pageInfo.total}
+            buildHref={buildPageHref}
+          />
         </AnimatedPageWrapper>
       </SiteContainer>
     </div>
   );
 }
+
 

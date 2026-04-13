@@ -7,8 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { discoveryScopeOptions } from "@/lib/discovery/constants";
 import { getSearchParam } from "@/lib/discovery/query";
 import { buildPageMetadata, getSeoSettings } from "@/lib/seo/metadata";
-import { getServerCaller } from "@/server/api/caller";
+import { getPublicServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultType } from "@/types/discovery";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { parsePageParam } from "@/lib/performance/pagination";
+
+export const revalidate = 120;
 
 type SearchPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -45,19 +49,32 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const query = getSearchParam(params.q).trim();
   const scope = getSearchParam(params.scope, "ALL");
+  const page = parsePageParam(getSearchParam(params.page), 1);
+  const pageSize = 24;
 
   const validScope = discoveryScopeOptions.some((option) => option.value === scope)
     ? (scope as "ALL" | "JOURNAL" | "ARTICLE" | "PROJECT" | "COURSE" | "QUIZ")
     : "ALL";
 
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
   const results = await caller.discovery.search({
     query: query || undefined,
     category: undefined,
     tag: undefined,
     scope: validScope,
-    limit: 48,
+    page,
+    pageSize,
+    limit: Math.max(90, page * pageSize),
   });
+
+  const buildPageHref = (nextPage: number) => {
+    const next = new URLSearchParams();
+    if (query) next.set("q", query);
+    if (validScope !== "ALL") next.set("scope", validScope);
+    if (nextPage > 1) next.set("page", String(nextPage));
+    const suffix = next.toString();
+    return suffix.length ? `/search?${suffix}` : "/search";
+  };
 
   return (
     <div className="py-10 md:py-14">
@@ -86,8 +103,16 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
         <AnimatedPageWrapper delay={0.04}>
           <SearchResultsShell items={results.items} query={query} />
+          <PaginationControls
+            className="mt-5"
+            page={results.pageInfo.page}
+            pageSize={results.pageInfo.pageSize}
+            totalItems={results.pageInfo.total}
+            buildHref={buildPageHref}
+          />
         </AnimatedPageWrapper>
       </SiteContainer>
     </div>
   );
 }
+

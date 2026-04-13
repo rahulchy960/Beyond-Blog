@@ -6,8 +6,10 @@ import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { PublicQuizAttempt } from "@/components/quiz/public-quiz-attempt";
 import { buildPageMetadata, getSeoSettings } from "@/lib/seo/metadata";
 import { buildBreadcrumbSchema, buildQuizSchema } from "@/lib/seo/structured-data";
-import { getServerCaller } from "@/server/api/caller";
+import { getPublicServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultItem } from "@/types/discovery";
+
+export const revalidate = 300;
 
 type QuizDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -17,7 +19,7 @@ export async function generateMetadata({
   params,
 }: QuizDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
 
   try {
     const quiz = await caller.quiz.getPublishedBySlug({ slug });
@@ -41,7 +43,7 @@ export async function generateMetadata({
 
 export default async function QuizDetailPage({ params }: QuizDetailPageProps) {
   const { slug } = await params;
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
   let quiz: Awaited<ReturnType<typeof caller.quiz.getPublishedBySlug>>;
   let relatedItems: DiscoveryResultItem[] = [];
 
@@ -87,3 +89,4 @@ export default async function QuizDetailPage({ params }: QuizDetailPageProps) {
     </SiteContainer>
   );
 }
+

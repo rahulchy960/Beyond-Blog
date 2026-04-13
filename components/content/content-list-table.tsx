@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { SearchIcon, SparklesIcon } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ContentActionsMenu } from "@/components/content/content-actions-menu";
 import { ContentStatusBadge } from "@/components/content/content-status-badge";
 import { useTRPC } from "@/hooks/use-trpc";
@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/ui/loading-skeletons";
+import { DataPagination } from "@/components/ui/data-pagination";
+import { queryStaleTimes } from "@/lib/trpc/query-presets";
 
 type ContentListTableProps = {
   type: ContentType;
@@ -28,15 +30,23 @@ export function ContentListTable({ type }: ContentListTableProps) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | PublishStatus>("all");
   const [featured, setFeatured] = useState<"all" | "featured" | "not_featured">("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+  const deferredQuery = useMemo(() => query.trim(), [query]);
 
   const contentMeta = contentTypeMeta[type];
   const listQuery = useQuery(
     trpc.content.listForAdmin.queryOptions({
       type,
-      query: query || undefined,
+      query: deferredQuery || undefined,
       status: status === "all" ? undefined : status,
       featured,
-      limit: 80,
+      page,
+      pageSize,
+    },
+    {
+      placeholderData: keepPreviousData,
+      staleTime: queryStaleTimes.adminLists,
     }),
   );
 
@@ -53,13 +63,22 @@ export function ContentListTable({ type }: ContentListTableProps) {
           <SearchIcon className="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
           <Input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
             placeholder={`Search ${contentMeta.plural.toLowerCase()} by title, slug, or summary`}
             className="pl-10"
           />
         </div>
 
-        <Select value={status} onValueChange={(value) => setStatus((value ?? "all") as "all" | PublishStatus)}>
+        <Select
+          value={status}
+          onValueChange={(value) => {
+            setStatus((value ?? "all") as "all" | PublishStatus);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-[11.5rem]">
             <SelectValue placeholder="Filter status" />
           </SelectTrigger>
@@ -74,7 +93,10 @@ export function ContentListTable({ type }: ContentListTableProps) {
         <Select
           value={featured}
           onValueChange={(value) =>
-            setFeatured((value ?? "all") as "all" | "featured" | "not_featured")
+            {
+              setFeatured((value ?? "all") as "all" | "featured" | "not_featured");
+              setPage(1);
+            }
           }
         >
           <SelectTrigger className="w-[11.5rem]">
@@ -88,7 +110,7 @@ export function ContentListTable({ type }: ContentListTableProps) {
         </Select>
 
         <div className="ml-auto hidden items-center gap-4 text-xs text-muted-foreground md:flex">
-          <p>Total: {rows.length}</p>
+          <p>Total: {listQuery.data?.total ?? rows.length}</p>
           <p>Published: {publishedCount}</p>
         </div>
       </div>
@@ -172,6 +194,14 @@ export function ContentListTable({ type }: ContentListTableProps) {
           </Table>
         </div>
       )}
+
+      <DataPagination
+        page={listQuery.data?.page ?? page}
+        pageSize={listQuery.data?.pageSize ?? pageSize}
+        totalItems={listQuery.data?.total ?? 0}
+        disabled={listQuery.isFetching}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

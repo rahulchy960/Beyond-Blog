@@ -17,6 +17,15 @@ export const createTRPCContext = async () => {
   };
 };
 
+export const createPublicTRPCContext = async () => {
+  return {
+    db,
+    userId: null as string | null,
+    sessionId: null as string | null,
+    isAuthenticated: false,
+  };
+};
+
 const t = initTRPC.context<Awaited<ReturnType<typeof createTRPCContext>>>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {

@@ -6,8 +6,10 @@ import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { PublicCourseDetail } from "@/components/course/public-course-detail";
 import { buildPageMetadata, getSeoSettings } from "@/lib/seo/metadata";
 import { buildBreadcrumbSchema, buildCourseSchema } from "@/lib/seo/structured-data";
-import { getServerCaller } from "@/server/api/caller";
+import { getPublicServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultItem } from "@/types/discovery";
+
+export const revalidate = 300;
 
 type CourseDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -17,7 +19,7 @@ export async function generateMetadata({
   params,
 }: CourseDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
 
   try {
     const course = await caller.course.getPublishedBySlug({ slug });
@@ -41,7 +43,7 @@ export async function generateMetadata({
 
 export default async function CourseDetailPage({ params }: CourseDetailPageProps) {
   const { slug } = await params;
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
   let course: Awaited<ReturnType<typeof caller.course.getPublishedBySlug>>;
   let relatedItems: DiscoveryResultItem[] = [];
 
@@ -86,3 +88,4 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
     </SiteContainer>
   );
 }
+

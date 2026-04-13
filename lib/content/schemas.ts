@@ -40,7 +40,8 @@ export const listAdminContentInputSchema = z.object({
   query: z.string().trim().max(120).optional(),
   status: z.enum(PUBLISH_STATUSES).optional(),
   featured: z.enum(["all", "featured", "not_featured"]).default("all"),
-  limit: z.number().int().min(1).max(100).default(50),
+  page: z.number().int().min(1).max(500).default(1),
+  pageSize: z.number().int().min(6).max(60).default(20),
 });
 
 export const listPublicContentInputSchema = z.object({

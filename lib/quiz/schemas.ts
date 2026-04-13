@@ -68,7 +68,8 @@ export const listAdminQuizzesInputSchema = z.object({
   query: z.string().trim().max(160).optional(),
   status: z.enum(QUIZ_STATUSES).optional(),
   sort: z.enum(["updated", "newest"]).default("updated"),
-  limit: z.number().int().min(1).max(120).default(80),
+  page: z.number().int().min(1).max(500).default(1),
+  pageSize: z.number().int().min(6).max(60).default(20),
 });
 
 export const listPublishedQuizzesInputSchema = z.object({

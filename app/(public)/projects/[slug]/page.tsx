@@ -7,8 +7,10 @@ import { SiteContainer } from "@/components/layout/site-container";
 import { AnimatedPageWrapper } from "@/components/ui/animated-page-wrapper";
 import { buildPageMetadata, getSeoSettings } from "@/lib/seo/metadata";
 import { buildArticleSchema, buildBreadcrumbSchema } from "@/lib/seo/structured-data";
-import { getServerCaller } from "@/server/api/caller";
+import { getPublicServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultItem } from "@/types/discovery";
+
+export const revalidate = 300;
 
 type ProjectDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -18,7 +20,7 @@ export async function generateMetadata({
   params,
 }: ProjectDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
 
   try {
     const content = await caller.content.getPublishedBySlug({
@@ -47,7 +49,7 @@ export async function generateMetadata({
 
 export default async function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const { slug } = await params;
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
   let content: Awaited<ReturnType<typeof caller.content.getPublishedBySlug>>;
   let relatedItems: DiscoveryResultItem[] = [];
 
@@ -107,3 +109,4 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
     </SiteContainer>
   );
 }
+

@@ -9,7 +9,7 @@ import {
   type InteractionTargetType,
 } from "@/lib/content/enums";
 import { getContentPublicPath } from "@/lib/interaction/constants";
-import { safeAnalyticsQuery } from "@/server/analytics/errors";
+import { isAnalyticsSchemaError, safeAnalyticsQuery } from "@/server/analytics/errors";
 
 export type AnalyticsTimeRange = "7d" | "30d" | "90d" | "all";
 
@@ -79,6 +79,9 @@ async function hasPendingCommentStatus(db: PrismaClient) {
 }
 
 let quizAnalyticsSchemaState: "unknown" | "ready" | "missing" = "unknown";
+let courseAnalyticsReadSchemaState: "unknown" | "ready" | "missing" = "unknown";
+let commentAnalyticsReadSchemaState: "unknown" | "ready" | "missing" = "unknown";
+let contentLikeAnalyticsReadSchemaState: "unknown" | "ready" | "missing" = "unknown";
 
 async function hasQuizAnalyticsReadSchema(db: PrismaClient) {
   if (quizAnalyticsSchemaState === "ready") {
@@ -92,7 +95,7 @@ async function hasQuizAnalyticsReadSchema(db: PrismaClient) {
   const rows = await safeAnalyticsQuery(
     () =>
       db.$queryRaw<Array<{ columnName: string }>>`
-        SELECT "column_name" AS "columnName"
+        SELECT CAST("column_name" AS text) AS "columnName"
         FROM "information_schema"."columns"
         WHERE "table_schema" = 'public'
           AND "table_name" = 'Quiz'
@@ -103,7 +106,19 @@ async function hasQuizAnalyticsReadSchema(db: PrismaClient) {
             'description',
             'status',
             'isFeatured',
+            'showAnswersAfterSubmit',
+            'allowMultipleAttempts',
+            'timeLimitMinutes',
+            'passingScore',
+            'contentId',
+            'courseId',
+            'courseLessonId',
+            'coverImageId',
+            'seoTitle',
+            'seoDescription',
+            'createdByAdminId',
             'publishedAt',
+            'createdAt',
             'updatedAt'
           )
       `,
@@ -118,11 +133,191 @@ async function hasQuizAnalyticsReadSchema(db: PrismaClient) {
     "description",
     "status",
     "isFeatured",
+    "showAnswersAfterSubmit",
+    "allowMultipleAttempts",
+    "timeLimitMinutes",
+    "passingScore",
+    "contentId",
+    "courseId",
+    "courseLessonId",
+    "coverImageId",
+    "seoTitle",
+    "seoDescription",
+    "createdByAdminId",
     "publishedAt",
+    "createdAt",
     "updatedAt",
   ];
   const ready = required.every((column) => found.has(column));
   quizAnalyticsSchemaState = ready ? "ready" : "missing";
+  return ready;
+}
+
+async function hasCourseAnalyticsReadSchema(db: PrismaClient) {
+  if (courseAnalyticsReadSchemaState === "ready") {
+    return true;
+  }
+
+  if (courseAnalyticsReadSchemaState === "missing") {
+    return false;
+  }
+
+  const rows = await safeAnalyticsQuery(
+    () =>
+      db.$queryRaw<Array<{ columnName: string }>>`
+        SELECT CAST("column_name" AS text) AS "columnName"
+        FROM "information_schema"."columns"
+        WHERE "table_schema" = 'public'
+          AND "table_name" = 'Course'
+          AND "column_name" IN (
+            'id',
+            'title',
+            'slug',
+            'summary',
+            'descriptionHtml',
+            'descriptionJson',
+            'coverImageId',
+            'difficultyLevel',
+            'estimatedDurationMinutes',
+            'status',
+            'isFeatured',
+            'seoTitle',
+            'seoDescription',
+            'publishedAt',
+            'createdAt',
+            'createdByAdminId',
+            'updatedAt'
+          )
+      `,
+    [] as Array<{ columnName: string }>,
+  );
+
+  const found = new Set(rows.map((row) => row.columnName));
+  const required = [
+    "id",
+    "title",
+    "slug",
+    "summary",
+    "descriptionHtml",
+    "descriptionJson",
+    "coverImageId",
+    "difficultyLevel",
+    "estimatedDurationMinutes",
+    "status",
+    "isFeatured",
+    "seoTitle",
+    "seoDescription",
+    "publishedAt",
+    "createdAt",
+    "createdByAdminId",
+    "updatedAt",
+  ];
+  const ready = required.every((column) => found.has(column));
+  courseAnalyticsReadSchemaState = ready ? "ready" : "missing";
+  return ready;
+}
+
+async function hasCommentAnalyticsReadSchema(db: PrismaClient) {
+  if (commentAnalyticsReadSchemaState === "ready") {
+    return true;
+  }
+  if (commentAnalyticsReadSchemaState === "missing") {
+    return false;
+  }
+
+  const rows = await safeAnalyticsQuery(
+    () =>
+      db.$queryRaw<Array<{ columnName: string }>>`
+        SELECT CAST("column_name" AS text) AS "columnName"
+        FROM "information_schema"."columns"
+        WHERE "table_schema" = 'public'
+          AND "table_name" = 'Comment'
+          AND "column_name" IN (
+            'id',
+            'targetType',
+            'contentId',
+            'courseId',
+            'courseLessonId',
+            'parentId',
+            'guestName',
+            'guestEmail',
+            'guestWebsite',
+            'guestFingerprintHash',
+            'body',
+            'status',
+            'moderationNote',
+            'moderatedByAdminId',
+            'createdAt',
+            'updatedAt'
+          )
+      `,
+    [] as Array<{ columnName: string }>,
+  );
+
+  const found = new Set(rows.map((row) => row.columnName));
+  const required = [
+    "id",
+    "targetType",
+    "contentId",
+    "courseId",
+    "courseLessonId",
+    "parentId",
+    "guestName",
+    "guestEmail",
+    "guestWebsite",
+    "guestFingerprintHash",
+    "body",
+    "status",
+    "moderationNote",
+    "moderatedByAdminId",
+    "createdAt",
+    "updatedAt",
+  ];
+  const ready = required.every((column) => found.has(column));
+  commentAnalyticsReadSchemaState = ready ? "ready" : "missing";
+  return ready;
+}
+
+async function hasContentLikeAnalyticsReadSchema(db: PrismaClient) {
+  if (contentLikeAnalyticsReadSchemaState === "ready") {
+    return true;
+  }
+  if (contentLikeAnalyticsReadSchemaState === "missing") {
+    return false;
+  }
+
+  const rows = await safeAnalyticsQuery(
+    () =>
+      db.$queryRaw<Array<{ columnName: string }>>`
+        SELECT CAST("column_name" AS text) AS "columnName"
+        FROM "information_schema"."columns"
+        WHERE "table_schema" = 'public'
+          AND "table_name" = 'ContentLike'
+          AND "column_name" IN (
+            'id',
+            'targetType',
+            'contentId',
+            'courseId',
+            'courseLessonId',
+            'visitorTokenHash',
+            'createdAt'
+          )
+      `,
+    [] as Array<{ columnName: string }>,
+  );
+
+  const found = new Set(rows.map((row) => row.columnName));
+  const required = [
+    "id",
+    "targetType",
+    "contentId",
+    "courseId",
+    "courseLessonId",
+    "visitorTokenHash",
+    "createdAt",
+  ];
+  const ready = required.every((column) => found.has(column));
+  contentLikeAnalyticsReadSchemaState = ready ? "ready" : "missing";
   return ready;
 }
 
@@ -138,79 +333,93 @@ function getTargetIdFromRow(row: {
 }
 
 async function getTopContentByLikes(db: PrismaClient, timeRange: AnalyticsTimeRange, limit: number) {
-  const start = getRangeStart(timeRange);
-  const grouped = await safeAnalyticsQuery(
-    () =>
-      db.contentLike.groupBy({
-        by: ["contentId"],
-        where: {
-          targetType: INTERACTION_TARGET_TYPE.CONTENT,
-          contentId: {
-            not: null,
-          },
-          ...(start
-            ? {
-                createdAt: {
-                  gte: start,
-                },
-              }
-            : {}),
-        },
-        _count: {
-          _all: true,
-        },
-        orderBy: {
-          _count: {
-            contentId: "desc",
-          },
-        },
-        take: limit,
-      }),
-    [] as Array<{ contentId: string | null; _count: { _all: number } }>,
-  );
-
-  const ids = grouped.map((item) => item.contentId).filter((value): value is string => Boolean(value));
-  if (ids.length === 0) {
+  if (!(await hasContentLikeAnalyticsReadSchema(db))) {
     return [];
   }
 
-  const contentRows = await safeAnalyticsQuery(
-    () =>
-      db.content.findMany({
-        where: {
-          id: {
-            in: ids,
+  try {
+    const start = getRangeStart(timeRange);
+    const grouped = await safeAnalyticsQuery(
+      () =>
+        db.contentLike.groupBy({
+          by: ["contentId"],
+          where: {
+            targetType: INTERACTION_TARGET_TYPE.CONTENT,
+            contentId: {
+              not: null,
+            },
+            ...(start
+              ? {
+                  createdAt: {
+                    gte: start,
+                  },
+                }
+              : {}),
           },
-        },
-        select: {
-          id: true,
-          title: true,
-          slug: true,
-          type: true,
-          publishStatus: true,
-        },
-      }),
-    [],
-  );
+          _count: {
+            _all: true,
+          },
+          orderBy: {
+            _count: {
+              contentId: "desc",
+            },
+          },
+          take: limit,
+        }),
+      [] as Array<{ contentId: string | null; _count: { _all: number } }>,
+    );
 
-  const contentById = new Map(contentRows.map((item) => [item.id, item]));
-  return grouped
-    .map((item) => {
-      if (!item.contentId) return null;
-      const content = contentById.get(item.contentId);
-      if (!content) return null;
+    const ids = grouped
+      .map((item) => item.contentId)
+      .filter((value): value is string => Boolean(value));
+    if (ids.length === 0) {
+      return [];
+    }
 
-      return {
-        id: content.id,
-        title: content.title,
-        slug: content.slug,
-        type: content.type,
-        publishStatus: content.publishStatus,
-        href: getContentPublicPath(content.type, content.slug),
-        likesCount: item._count._all,
-      };
-    })
-    .filter((item): item is Exclude<typeof item, null> => item !== null);
+    const contentRows = await safeAnalyticsQuery(
+      () =>
+        db.content.findMany({
+          where: {
+            id: {
+              in: ids,
+            },
+          },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            type: true,
+            publishStatus: true,
+          },
+        }),
+      [],
+    );
+
+    const contentById = new Map(contentRows.map((item) => [item.id, item]));
+    return grouped
+      .map((item) => {
+        if (!item.contentId) return null;
+        const content = contentById.get(item.contentId);
+        if (!content) return null;
+
+        return {
+          id: content.id,
+          title: content.title,
+          slug: content.slug,
+          type: content.type,
+          publishStatus: content.publishStatus,
+          href: getContentPublicPath(content.type, content.slug),
+          likesCount: item._count._all,
+        };
+      })
+      .filter((item): item is Exclude<typeof item, null> => item !== null);
+  } catch (error) {
+    if (isAnalyticsSchemaError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
 }
 
 async function getTopContentByComments(
@@ -218,80 +427,94 @@ async function getTopContentByComments(
   timeRange: AnalyticsTimeRange,
   limit: number,
 ) {
-  const start = getRangeStart(timeRange);
-  const grouped = await safeAnalyticsQuery(
-    () =>
-      db.comment.groupBy({
-        by: ["contentId"],
-        where: {
-          targetType: INTERACTION_TARGET_TYPE.CONTENT,
-          status: COMMENT_STATUS.VISIBLE,
-          contentId: {
-            not: null,
-          },
-          ...(start
-            ? {
-                createdAt: {
-                  gte: start,
-                },
-              }
-            : {}),
-        },
-        _count: {
-          _all: true,
-        },
-        orderBy: {
-          _count: {
-            contentId: "desc",
-          },
-        },
-        take: limit,
-      }),
-    [] as Array<{ contentId: string | null; _count: { _all: number } }>,
-  );
-
-  const ids = grouped.map((item) => item.contentId).filter((value): value is string => Boolean(value));
-  if (ids.length === 0) {
+  if (!(await hasCommentAnalyticsReadSchema(db))) {
     return [];
   }
 
-  const contentRows = await safeAnalyticsQuery(
-    () =>
-      db.content.findMany({
-        where: {
-          id: {
-            in: ids,
+  try {
+    const start = getRangeStart(timeRange);
+    const grouped = await safeAnalyticsQuery(
+      () =>
+        db.comment.groupBy({
+          by: ["contentId"],
+          where: {
+            targetType: INTERACTION_TARGET_TYPE.CONTENT,
+            status: COMMENT_STATUS.VISIBLE,
+            contentId: {
+              not: null,
+            },
+            ...(start
+              ? {
+                  createdAt: {
+                    gte: start,
+                  },
+                }
+              : {}),
           },
-        },
-        select: {
-          id: true,
-          title: true,
-          slug: true,
-          type: true,
-          publishStatus: true,
-        },
-      }),
-    [],
-  );
+          _count: {
+            _all: true,
+          },
+          orderBy: {
+            _count: {
+              contentId: "desc",
+            },
+          },
+          take: limit,
+        }),
+      [] as Array<{ contentId: string | null; _count: { _all: number } }>,
+    );
 
-  const contentById = new Map(contentRows.map((item) => [item.id, item]));
-  return grouped
-    .map((item) => {
-      if (!item.contentId) return null;
-      const content = contentById.get(item.contentId);
-      if (!content) return null;
+    const ids = grouped
+      .map((item) => item.contentId)
+      .filter((value): value is string => Boolean(value));
+    if (ids.length === 0) {
+      return [];
+    }
 
-      return {
-        id: content.id,
-        title: content.title,
-        slug: content.slug,
-        type: content.type,
-        publishStatus: content.publishStatus,
-        href: getContentPublicPath(content.type, content.slug),
-        commentsCount: item._count._all,
-      };
-    })
-    .filter((item): item is Exclude<typeof item, null> => item !== null);
+    const contentRows = await safeAnalyticsQuery(
+      () =>
+        db.content.findMany({
+          where: {
+            id: {
+              in: ids,
+            },
+          },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            type: true,
+            publishStatus: true,
+          },
+        }),
+      [],
+    );
+
+    const contentById = new Map(contentRows.map((item) => [item.id, item]));
+    return grouped
+      .map((item) => {
+        if (!item.contentId) return null;
+        const content = contentById.get(item.contentId);
+        if (!content) return null;
+
+        return {
+          id: content.id,
+          title: content.title,
+          slug: content.slug,
+          type: content.type,
+          publishStatus: content.publishStatus,
+          href: getContentPublicPath(content.type, content.slug),
+          commentsCount: item._count._all,
+        };
+      })
+      .filter((item): item is Exclude<typeof item, null> => item !== null);
+  } catch (error) {
+    if (isAnalyticsSchemaError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
 }
 
 async function getTopQuizzesByAttempts(
@@ -368,8 +591,17 @@ async function getTopQuizzesByAttempts(
 }
 
 async function getTopEngagedTargets(db: PrismaClient, timeRange: AnalyticsTimeRange, limit: number) {
-  const start = getRangeStart(timeRange);
-  const [commentGroups, likeGroups] = await Promise.all([
+  const [hasCommentSchema, hasLikeSchema] = await Promise.all([
+    hasCommentAnalyticsReadSchema(db),
+    hasContentLikeAnalyticsReadSchema(db),
+  ]);
+  if (!hasCommentSchema || !hasLikeSchema) {
+    return [];
+  }
+
+  try {
+    const start = getRangeStart(timeRange);
+    const [commentGroups, likeGroups] = await Promise.all([
     safeAnalyticsQuery(
       () =>
         db.comment.groupBy({
@@ -543,41 +775,51 @@ async function getTopEngagedTargets(db: PrismaClient, timeRange: AnalyticsTimeRa
   const courseMap = new Map(courses.map((item) => [item.id, item]));
   const lessonMap = new Map(lessons.map((item) => [item.id, item]));
 
-  return ranked
-    .map((item) => {
-      if (item.targetType === INTERACTION_TARGET_TYPE.CONTENT) {
-        const content = contentMap.get(item.targetId);
-        if (!content) return null;
+    return ranked
+      .map((item) => {
+        if (item.targetType === INTERACTION_TARGET_TYPE.CONTENT) {
+          const content = contentMap.get(item.targetId);
+          if (!content) return null;
+          return {
+            ...item,
+            title: content.title,
+            href: getContentPublicPath(content.type, content.slug),
+          };
+        }
+
+        if (item.targetType === INTERACTION_TARGET_TYPE.COURSE) {
+          const course = courseMap.get(item.targetId);
+          if (!course) return null;
+          return {
+            ...item,
+            title: course.title,
+            href: `/courses/${course.slug}`,
+          };
+        }
+
+        const lesson = lessonMap.get(item.targetId);
+        if (!lesson) return null;
         return {
           ...item,
-          title: content.title,
-          href: getContentPublicPath(content.type, content.slug),
+          title: lesson.title,
+          href: `/courses/${lesson.course.slug}#lesson-${lesson.id}`,
         };
-      }
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+  } catch (error) {
+    if (isAnalyticsSchemaError(error)) {
+      return [];
+    }
 
-      if (item.targetType === INTERACTION_TARGET_TYPE.COURSE) {
-        const course = courseMap.get(item.targetId);
-        if (!course) return null;
-        return {
-          ...item,
-          title: course.title,
-          href: `/courses/${course.slug}`,
-        };
-      }
-
-      const lesson = lessonMap.get(item.targetId);
-      if (!lesson) return null;
-      return {
-        ...item,
-        title: lesson.title,
-        href: `/courses/${lesson.course.slug}#lesson-${lesson.id}`,
-      };
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null);
+    throw error;
+  }
 }
 
 async function getRecentPublished(db: PrismaClient, limit: number) {
-  const hasQuizSchema = await hasQuizAnalyticsReadSchema(db);
+  const [hasCourseSchema, hasQuizSchema] = await Promise.all([
+    hasCourseAnalyticsReadSchema(db),
+    hasQuizAnalyticsReadSchema(db),
+  ]);
   const [contents, courses, quizzes] = await Promise.all([
     safeAnalyticsQuery(
       () =>
@@ -600,26 +842,28 @@ async function getRecentPublished(db: PrismaClient, limit: number) {
         }),
       [],
     ),
-    safeAnalyticsQuery(
-      () =>
-        db.course.findMany({
-          where: {
-            status: COURSE_STATUS.PUBLISHED,
-            publishedAt: {
-              not: null,
-            },
-          },
-          orderBy: [{ publishedAt: "desc" }],
-          take: limit,
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            publishedAt: true,
-          },
-        }),
-      [],
-    ),
+    hasCourseSchema
+      ? safeAnalyticsQuery(
+          () =>
+            db.course.findMany({
+              where: {
+                status: COURSE_STATUS.PUBLISHED,
+                publishedAt: {
+                  not: null,
+                },
+              },
+              orderBy: [{ publishedAt: "desc" }],
+              take: limit,
+              select: {
+                id: true,
+                title: true,
+                slug: true,
+                publishedAt: true,
+              },
+            }),
+          [],
+        )
+      : Promise.resolve([]),
     hasQuizSchema
       ? safeAnalyticsQuery(
           () =>
@@ -709,67 +953,76 @@ async function getRecentAdminActions(db: PrismaClient, limit: number) {
 }
 
 async function getRecentPublicActivity(db: PrismaClient, limit: number) {
+  const [hasCommentSchema, hasQuizSchema] = await Promise.all([
+    hasCommentAnalyticsReadSchema(db),
+    hasQuizAnalyticsReadSchema(db),
+  ]);
+
   const [comments, attempts] = await Promise.all([
-    safeAnalyticsQuery(
-      () =>
-        db.comment.findMany({
-          where: {
-            status: {
-              in: [COMMENT_STATUS.VISIBLE, COMMENT_STATUS.PENDING],
-            },
-          },
-          orderBy: [{ createdAt: "desc" }],
-          take: limit,
-          include: {
-            content: {
-              select: {
-                title: true,
-                slug: true,
-                type: true,
+    hasCommentSchema
+      ? safeAnalyticsQuery(
+          () =>
+            db.comment.findMany({
+              where: {
+                status: {
+                  in: [COMMENT_STATUS.VISIBLE, COMMENT_STATUS.PENDING],
+                },
               },
-            },
-            course: {
-              select: {
-                title: true,
-                slug: true,
-              },
-            },
-            courseLesson: {
-              select: {
-                id: true,
-                title: true,
+              orderBy: [{ createdAt: "desc" }],
+              take: limit,
+              include: {
+                content: {
+                  select: {
+                    title: true,
+                    slug: true,
+                    type: true,
+                  },
+                },
                 course: {
                   select: {
+                    title: true,
+                    slug: true,
+                  },
+                },
+                courseLesson: {
+                  select: {
+                    id: true,
+                    title: true,
+                    course: {
+                      select: {
+                        slug: true,
+                      },
+                    },
+                  },
+                },
+              },
+            }),
+          [],
+        )
+      : Promise.resolve([]),
+    hasQuizSchema
+      ? safeAnalyticsQuery(
+          () =>
+            db.quizAttempt.findMany({
+              where: {
+                submittedAt: {
+                  not: null,
+                },
+              },
+              orderBy: [{ submittedAt: "desc" }],
+              take: limit,
+              include: {
+                quiz: {
+                  select: {
+                    title: true,
                     slug: true,
                   },
                 },
               },
-            },
-          },
-        }),
-      [],
-    ),
-    safeAnalyticsQuery(
-      () =>
-        db.quizAttempt.findMany({
-          where: {
-            submittedAt: {
-              not: null,
-            },
-          },
-          orderBy: [{ submittedAt: "desc" }],
-          take: limit,
-          include: {
-            quiz: {
-              select: {
-                title: true,
-                slug: true,
-              },
-            },
-          },
-        }),
-      [],
-    ),
+            }),
+          [],
+        )
+      : Promise.resolve([]),
   ]);
 
   const commentItems = comments.map((comment) => {
@@ -828,6 +1081,16 @@ async function getRecentPublicActivity(db: PrismaClient, limit: number) {
 }
 
 async function getCourseSignals(db: PrismaClient, timeRange: AnalyticsTimeRange, limit: number) {
+  const [hasCourseSchema, hasCommentSchema, hasLikeSchema] = await Promise.all([
+    hasCourseAnalyticsReadSchema(db),
+    hasCommentAnalyticsReadSchema(db),
+    hasContentLikeAnalyticsReadSchema(db),
+  ]);
+
+  if (!hasCourseSchema || !hasCommentSchema || !hasLikeSchema) {
+    return [];
+  }
+
   const start = getRangeStart(timeRange);
   const [courses, courseCommentGroups, courseLikeGroups] = await Promise.all([
     safeAnalyticsQuery(
@@ -844,7 +1107,6 @@ async function getCourseSignals(db: PrismaClient, timeRange: AnalyticsTimeRange,
               select: {
                 sections: true,
                 lessons: true,
-                quizzes: true,
               },
             },
           },
@@ -924,7 +1186,7 @@ async function getCourseSignals(db: PrismaClient, timeRange: AnalyticsTimeRange,
         href: `/courses/${course.slug}`,
         sectionsCount: course._count.sections,
         lessonsCount: course._count.lessons,
-        quizzesCount: course._count.quizzes,
+        quizzesCount: 0,
         commentsCount,
         likesCount,
         engagementScore: commentsCount * 2 + likesCount,
@@ -934,47 +1196,104 @@ async function getCourseSignals(db: PrismaClient, timeRange: AnalyticsTimeRange,
     .slice(0, limit);
 }
 
-export async function getDashboardSummary(db: PrismaClient) {
-  const pendingSupported = await hasPendingCommentStatus(db);
-  const start7d = getRangeStart("7d") as Date;
-  const start30d = getRangeStart("30d") as Date;
+function createEmptyDashboardSummary() {
+  const contentByType = [CONTENT_TYPE.JOURNAL, CONTENT_TYPE.ARTICLE, CONTENT_TYPE.PROJECT].map(
+    (type) => ({
+      type,
+      total: 0,
+      published: 0,
+      draft: 0,
+      archived: 0,
+    }),
+  );
 
-  const [
-    totalContent,
-    publishedContent,
-    draftContent,
-    archivedContent,
-    totalComments,
-    visibleComments,
-    hiddenComments,
-    deletedComments,
-    pendingComments,
-    totalLikes,
-    totalQuizzes,
-    totalQuizAttempts,
-    totalCourses,
-    totalAuditLogs,
-    totalMediaAssets,
-    contentTypeGroups,
-    contentTypeStatusGroups,
-    staleDraftContent,
-    staleDraftCourses,
-    draftCourses,
-    draftQuizzes,
-    comments7d,
-    likes7d,
-    attempts7d,
-    published7d,
-    published30d,
-    recentPublished,
-    recentAdminActions,
-    recentPublicActivity,
-    topLikedContent,
-    topCommentedContent,
-    topQuizzesByAttempts,
-    topEngagedTargets,
-    courseSignals,
-  ] = await Promise.all([
+  return {
+    metrics: {
+      totalContent: 0,
+      publishedContent: 0,
+      draftContent: 0,
+      archivedContent: 0,
+      totalComments: 0,
+      visibleComments: 0,
+      pendingComments: 0,
+      hiddenComments: 0,
+      deletedComments: 0,
+      totalLikes: 0,
+      totalQuizzes: 0,
+      totalQuizAttempts: 0,
+      totalCourses: 0,
+      totalAuditLogs: 0,
+      totalMediaAssets: 0,
+    },
+    momentum: {
+      comments7d: 0,
+      likes7d: 0,
+      attempts7d: 0,
+      published7d: 0,
+      published30d: 0,
+    },
+    attention: {
+      pendingComments: 0,
+      staleDraftContent: 0,
+      staleDraftCourses: 0,
+      hiddenComments: 0,
+      draftCourses: 0,
+      draftQuizzes: 0,
+    },
+    contentByType,
+    recentPublished: [],
+    recentAdminActions: [],
+    recentPublicActivity: [],
+    topLikedContent: [],
+    topCommentedContent: [],
+    topQuizzesByAttempts: [],
+    topEngagedTargets: [],
+    courseSignals: [],
+  };
+}
+
+export async function getDashboardSummary(db: PrismaClient) {
+  try {
+    const pendingSupported = await hasPendingCommentStatus(db);
+    const start7d = getRangeStart("7d") as Date;
+    const start30d = getRangeStart("30d") as Date;
+
+    const [
+      totalContent,
+      publishedContent,
+      draftContent,
+      archivedContent,
+      totalComments,
+      visibleComments,
+      hiddenComments,
+      deletedComments,
+      pendingComments,
+      totalLikes,
+      totalQuizzes,
+      totalQuizAttempts,
+      totalCourses,
+      totalAuditLogs,
+      totalMediaAssets,
+      contentTypeGroups,
+      contentTypeStatusGroups,
+      staleDraftContent,
+      staleDraftCourses,
+      draftCourses,
+      draftQuizzes,
+      comments7d,
+      likes7d,
+      attempts7d,
+      published7d,
+      published30d,
+      recentPublished,
+      recentAdminActions,
+      recentPublicActivity,
+      topLikedContent,
+      topCommentedContent,
+      topQuizzesByAttempts,
+      topEngagedTargets,
+      courseSignals,
+    ] = await Promise.all([
     safeAnalyticsQuery(() => db.content.count(), 0),
     safeAnalyticsQuery(
       () =>
@@ -1176,85 +1495,92 @@ export async function getDashboardSummary(db: PrismaClient) {
         }),
       0,
     ),
-    getRecentPublished(db, 10),
-    getRecentAdminActions(db, 10),
-    getRecentPublicActivity(db, 10),
-    getTopContentByLikes(db, "30d", 6),
-    getTopContentByComments(db, "30d", 6),
-    getTopQuizzesByAttempts(db, "30d", 6),
-    getTopEngagedTargets(db, "30d", 6),
-    getCourseSignals(db, "30d", 6),
-  ]);
+      safeAnalyticsQuery(() => getRecentPublished(db, 10), []),
+      safeAnalyticsQuery(() => getRecentAdminActions(db, 10), []),
+      safeAnalyticsQuery(() => getRecentPublicActivity(db, 10), []),
+      safeAnalyticsQuery(() => getTopContentByLikes(db, "30d", 6), []),
+      safeAnalyticsQuery(() => getTopContentByComments(db, "30d", 6), []),
+      safeAnalyticsQuery(() => getTopQuizzesByAttempts(db, "30d", 6), []),
+      safeAnalyticsQuery(() => getTopEngagedTargets(db, "30d", 6), []),
+      safeAnalyticsQuery(() => getCourseSignals(db, "30d", 6), []),
+    ]);
 
-  const baseTypes = [CONTENT_TYPE.JOURNAL, CONTENT_TYPE.ARTICLE, CONTENT_TYPE.PROJECT];
-  const contentByType = baseTypes.map((type) => {
-    const total = contentTypeGroups.find((item) => item.type === type)?._count._all ?? 0;
+    const baseTypes = [CONTENT_TYPE.JOURNAL, CONTENT_TYPE.ARTICLE, CONTENT_TYPE.PROJECT];
+    const contentByType = baseTypes.map((type) => {
+      const total = contentTypeGroups.find((item) => item.type === type)?._count._all ?? 0;
 
-    const published =
-      contentTypeStatusGroups.find(
-        (item) => item.type === type && item.publishStatus === PUBLISH_STATUS.PUBLISHED,
-      )?._count._all ?? 0;
-    const draft =
-      contentTypeStatusGroups.find(
-        (item) => item.type === type && item.publishStatus === PUBLISH_STATUS.DRAFT,
-      )?._count._all ?? 0;
-    const archived =
-      contentTypeStatusGroups.find(
-        (item) => item.type === type && item.publishStatus === PUBLISH_STATUS.ARCHIVED,
-      )?._count._all ?? 0;
+      const published =
+        contentTypeStatusGroups.find(
+          (item) => item.type === type && item.publishStatus === PUBLISH_STATUS.PUBLISHED,
+        )?._count._all ?? 0;
+      const draft =
+        contentTypeStatusGroups.find(
+          (item) => item.type === type && item.publishStatus === PUBLISH_STATUS.DRAFT,
+        )?._count._all ?? 0;
+      const archived =
+        contentTypeStatusGroups.find(
+          (item) => item.type === type && item.publishStatus === PUBLISH_STATUS.ARCHIVED,
+        )?._count._all ?? 0;
+
+      return {
+        type,
+        total,
+        published,
+        draft,
+        archived,
+      };
+    });
 
     return {
-      type,
-      total,
-      published,
-      draft,
-      archived,
+      metrics: {
+        totalContent,
+        publishedContent,
+        draftContent,
+        archivedContent,
+        totalComments,
+        visibleComments,
+        pendingComments,
+        hiddenComments,
+        deletedComments,
+        totalLikes,
+        totalQuizzes,
+        totalQuizAttempts,
+        totalCourses,
+        totalAuditLogs,
+        totalMediaAssets,
+      },
+      momentum: {
+        comments7d,
+        likes7d,
+        attempts7d,
+        published7d,
+        published30d,
+      },
+      attention: {
+        pendingComments,
+        staleDraftContent,
+        staleDraftCourses,
+        hiddenComments,
+        draftCourses,
+        draftQuizzes,
+      },
+      contentByType,
+      recentPublished,
+      recentAdminActions,
+      recentPublicActivity,
+      topLikedContent,
+      topCommentedContent,
+      topQuizzesByAttempts,
+      topEngagedTargets,
+      courseSignals,
     };
-  });
+  } catch (error) {
+    if (isAnalyticsSchemaError(error)) {
+      return createEmptyDashboardSummary();
+    }
 
-  return {
-    metrics: {
-      totalContent,
-      publishedContent,
-      draftContent,
-      archivedContent,
-      totalComments,
-      visibleComments,
-      pendingComments,
-      hiddenComments,
-      deletedComments,
-      totalLikes,
-      totalQuizzes,
-      totalQuizAttempts,
-      totalCourses,
-      totalAuditLogs,
-      totalMediaAssets,
-    },
-    momentum: {
-      comments7d,
-      likes7d,
-      attempts7d,
-      published7d,
-      published30d,
-    },
-    attention: {
-      pendingComments,
-      staleDraftContent,
-      staleDraftCourses,
-      hiddenComments,
-      draftCourses,
-      draftQuizzes,
-    },
-    contentByType,
-    recentPublished,
-    recentAdminActions,
-    recentPublicActivity,
-    topLikedContent,
-    topCommentedContent,
-    topQuizzesByAttempts,
-    topEngagedTargets,
-    courseSignals,
-  };
+    throw error;
+  }
 }
 
 export async function getAnalyticsDetail(
@@ -1262,12 +1588,19 @@ export async function getAnalyticsDetail(
   timeRange: AnalyticsTimeRange,
 ) {
   const start = getRangeStart(timeRange);
-  const pendingSupported = await hasPendingCommentStatus(db);
-  const hasQuizSchema = await hasQuizAnalyticsReadSchema(db);
   const dayBuckets = buildDayBuckets(timeRange);
 
-  const [contentPublishes, coursePublishes, quizPublishes, comments, likes, attempts] =
-    await Promise.all([
+  try {
+    const pendingSupported = await hasPendingCommentStatus(db);
+    const [hasCourseSchema, hasQuizSchema, hasCommentSchema, hasLikeSchema] = await Promise.all([
+      hasCourseAnalyticsReadSchema(db),
+      hasQuizAnalyticsReadSchema(db),
+      hasCommentAnalyticsReadSchema(db),
+      hasContentLikeAnalyticsReadSchema(db),
+    ]);
+
+    const [contentPublishes, coursePublishes, quizPublishes, comments, likes, attempts] =
+      await Promise.all([
       safeAnalyticsQuery(
         () =>
           db.content.findMany({
@@ -1284,22 +1617,24 @@ export async function getAnalyticsDetail(
           }),
         [],
       ),
-      safeAnalyticsQuery(
-        () =>
-          db.course.findMany({
-            where: {
-              status: COURSE_STATUS.PUBLISHED,
-              publishedAt: {
-                not: null,
-                ...(start ? { gte: start } : {}),
-              },
-            },
-            select: {
-              publishedAt: true,
-            },
-          }),
-        [],
-      ),
+      hasCourseSchema
+        ? safeAnalyticsQuery(
+            () =>
+              db.course.findMany({
+                where: {
+                  status: COURSE_STATUS.PUBLISHED,
+                  publishedAt: {
+                    not: null,
+                    ...(start ? { gte: start } : {}),
+                  },
+                },
+                select: {
+                  publishedAt: true,
+                },
+              }),
+            [],
+          )
+        : Promise.resolve([]),
       hasQuizSchema
         ? safeAnalyticsQuery(
             () =>
@@ -1318,35 +1653,39 @@ export async function getAnalyticsDetail(
             [],
           )
         : Promise.resolve([]),
-      safeAnalyticsQuery(
-        () =>
-          db.comment.findMany({
-            where: {
-              createdAt: start ? { gte: start } : undefined,
-              status: {
-                in: pendingSupported
-                  ? [COMMENT_STATUS.VISIBLE, COMMENT_STATUS.PENDING]
-                  : [COMMENT_STATUS.VISIBLE],
-              },
-            },
-            select: {
-              createdAt: true,
-            },
-          }),
-        [],
-      ),
-      safeAnalyticsQuery(
-        () =>
-          db.contentLike.findMany({
-            where: {
-              createdAt: start ? { gte: start } : undefined,
-            },
-            select: {
-              createdAt: true,
-            },
-          }),
-        [],
-      ),
+      hasCommentSchema
+        ? safeAnalyticsQuery(
+            () =>
+              db.comment.findMany({
+                where: {
+                  createdAt: start ? { gte: start } : undefined,
+                  status: {
+                    in: pendingSupported
+                      ? [COMMENT_STATUS.VISIBLE, COMMENT_STATUS.PENDING]
+                      : [COMMENT_STATUS.VISIBLE],
+                  },
+                },
+                select: {
+                  createdAt: true,
+                },
+              }),
+            [],
+          )
+        : Promise.resolve([]),
+      hasLikeSchema
+        ? safeAnalyticsQuery(
+            () =>
+              db.contentLike.findMany({
+                where: {
+                  createdAt: start ? { gte: start } : undefined,
+                },
+                select: {
+                  createdAt: true,
+                },
+              }),
+            [],
+          )
+        : Promise.resolve([]),
       safeAnalyticsQuery(
         () =>
           db.quizAttempt.findMany({
@@ -1362,7 +1701,7 @@ export async function getAnalyticsDetail(
           }),
         [],
       ),
-    ]);
+      ]);
 
   const publishMap = new Map<
     string,
@@ -1430,28 +1769,59 @@ export async function getAnalyticsDetail(
     slot.total += 1;
   }
 
-  const topByLikes = await getTopContentByLikes(db, timeRange, 8);
-  const topByComments = await getTopContentByComments(db, timeRange, 8);
-  const topByQuizAttempts = await getTopQuizzesByAttempts(db, timeRange, 8);
-  const courseSignals = await getCourseSignals(db, timeRange, 8);
-  const summary = await getDashboardSummary(db);
+    const [topByLikes, topByComments, topByQuizAttempts, courseSignals, summary] =
+      await Promise.all([
+        safeAnalyticsQuery(() => getTopContentByLikes(db, timeRange, 8), []),
+        safeAnalyticsQuery(() => getTopContentByComments(db, timeRange, 8), []),
+        safeAnalyticsQuery(() => getTopQuizzesByAttempts(db, timeRange, 8), []),
+        safeAnalyticsQuery(() => getCourseSignals(db, timeRange, 8), []),
+        safeAnalyticsQuery(() => getDashboardSummary(db), createEmptyDashboardSummary()),
+      ]);
 
-  return {
-    timeRange,
-    summary,
-    publishTrend: Array.from(publishMap.entries()).map(([date, value]) => ({
-      date,
-      ...value,
-    })),
-    interactionTrend: Array.from(interactionMap.entries()).map(([date, value]) => ({
-      date,
-      ...value,
-    })),
-    topByLikes,
-    topByComments,
-    topByQuizAttempts,
-    courseSignals,
-  };
+    return {
+      timeRange,
+      summary,
+      publishTrend: Array.from(publishMap.entries()).map(([date, value]) => ({
+        date,
+        ...value,
+      })),
+      interactionTrend: Array.from(interactionMap.entries()).map(([date, value]) => ({
+        date,
+        ...value,
+      })),
+      topByLikes,
+      topByComments,
+      topByQuizAttempts,
+      courseSignals,
+    };
+  } catch (error) {
+    if (isAnalyticsSchemaError(error)) {
+      return {
+        timeRange,
+        summary: createEmptyDashboardSummary(),
+        publishTrend: dayBuckets.map((date) => ({
+          date,
+          content: 0,
+          courses: 0,
+          quizzes: 0,
+          total: 0,
+        })),
+        interactionTrend: dayBuckets.map((date) => ({
+          date,
+          comments: 0,
+          likes: 0,
+          quizAttempts: 0,
+          total: 0,
+        })),
+        topByLikes: [],
+        topByComments: [],
+        topByQuizAttempts: [],
+        courseSignals: [],
+      };
+    }
+
+    throw error;
+  }
 }
 
 export async function getTopPerformingContent(

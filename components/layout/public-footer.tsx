@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getServerCaller } from "@/server/api/caller";
+import { getPublicServerCaller } from "@/server/api/caller";
 import { platformName } from "@/lib/constants";
 import { SiteContainer } from "@/components/layout/site-container";
 
@@ -9,7 +9,7 @@ function hasValue(value?: string | null) {
 
 export async function PublicFooter() {
   const year = new Date().getFullYear();
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
   const profile = await caller.profile.getPublicFooterProfile();
 
   const socialLinks = [
@@ -68,4 +68,5 @@ export async function PublicFooter() {
     </footer>
   );
 }
+
 

@@ -1,7 +1,6 @@
-import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { MenuIcon } from "lucide-react";
-import { getServerCaller } from "@/server/api/caller";
+import { getPublicServerCaller } from "@/server/api/caller";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { buttonVariants } from "@/lib/ui/button-variants";
@@ -26,8 +25,7 @@ function getInitials(label: string) {
 }
 
 export async function PublicHeader() {
-  const { userId } = await auth();
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
   const identity = await caller.profile.getPublicIdentity();
   const adminLabel = identity.name;
 
@@ -59,15 +57,9 @@ export async function PublicHeader() {
 
         <div className="ml-auto flex items-center justify-end gap-2">
           <ThemeToggle />
-          {userId ? (
-            <Link className={buttonVariants({ variant: "outline", size: "sm" })} href="/admin">
-              Admin Console
-            </Link>
-          ) : (
-            <Link className={cn(buttonVariants({ variant: "outline", size: "sm" }), "hidden sm:inline-flex")} href="/sign-in">
-              Admin Sign-In
-            </Link>
-          )}
+          <Link className={buttonVariants({ variant: "outline", size: "sm" })} href="/admin">
+            Admin Console
+          </Link>
           <Sheet>
             <SheetTrigger className={cn(buttonVariants({ variant: "outline", size: "icon" }), "md:hidden")} aria-label="Open navigation menu">
               <MenuIcon className="size-4" />
@@ -83,11 +75,9 @@ export async function PublicHeader() {
                     {item.label}
                   </Link>
                 ))}
-                {userId ? (
-                  <Link href="/admin" className={buttonVariants({ variant: "outline", size: "sm" })}>Admin Console</Link>
-                ) : (
-                  <Link href="/sign-in" className={buttonVariants({ variant: "outline", size: "sm" })}>Admin Sign-In</Link>
-                )}
+                <Link href="/admin" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                  Admin Console
+                </Link>
               </div>
             </SheetContent>
           </Sheet>
@@ -96,4 +86,5 @@ export async function PublicHeader() {
     </header>
   );
 }
+
 

@@ -33,6 +33,9 @@ const optionalSlug = z.preprocess(
   slugSchema.optional(),
 );
 
+const pageSchema = z.number().int().min(1).max(500).default(1);
+const pageSizeSchema = z.number().int().min(6).max(48).default(18);
+
 export const discoveryScopeSchema = z.enum([
   "ALL",
   "JOURNAL",
@@ -52,7 +55,9 @@ export const publicSearchInputSchema = z.object({
   featuredOnly: z.boolean().optional(),
   difficulty: z.enum(COURSE_DIFFICULTY_LEVELS).optional(),
   sort: z.enum(["relevance", "newest"]).default("relevance"),
-  limit: z.number().int().min(1).max(80).default(30),
+  limit: z.number().int().min(1).max(180).default(60),
+  page: pageSchema,
+  pageSize: pageSizeSchema.default(24),
 });
 
 export const publicContentDiscoveryInputSchema = z.object({
@@ -62,7 +67,8 @@ export const publicContentDiscoveryInputSchema = z.object({
   tag: optionalSlug,
   featuredOnly: z.boolean().optional(),
   sort: z.enum(["newest", "oldest"]).default("newest"),
-  limit: z.number().int().min(1).max(80).default(36),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
 });
 
 export const publicCourseDiscoveryInputSchema = z.object({
@@ -70,19 +76,22 @@ export const publicCourseDiscoveryInputSchema = z.object({
   difficulty: z.enum(COURSE_DIFFICULTY_LEVELS).optional(),
   featuredOnly: z.boolean().optional(),
   sort: z.enum(["newest", "oldest"]).default("newest"),
-  limit: z.number().int().min(1).max(80).default(36),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
 });
 
 export const publicQuizDiscoveryInputSchema = z.object({
   query: optionalSearchText,
   featuredOnly: z.boolean().optional(),
   sort: z.enum(["newest", "oldest"]).default("newest"),
-  limit: z.number().int().min(1).max(80).default(36),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
 });
 
 export const taxonomyBySlugInputSchema = z.object({
   slug: slugSchema,
-  limit: z.number().int().min(1).max(80).default(40),
+  page: pageSchema,
+  pageSize: pageSizeSchema.default(24),
 });
 
 export const relatedContentInputSchema = z.object({
@@ -139,4 +148,3 @@ export function normalizeOptionalText(value?: string | null) {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
-

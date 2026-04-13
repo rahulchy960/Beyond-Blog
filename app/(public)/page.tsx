@@ -16,8 +16,10 @@ import { buildPageMetadata, getSeoSettings } from "@/lib/seo/metadata";
 import { buildPersonSchema, buildWebSiteSchema } from "@/lib/seo/structured-data";
 import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
-import { getServerCaller } from "@/server/api/caller";
+import { getPublicServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultItem } from "@/types/discovery";
+
+export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildPageMetadata({
@@ -30,7 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const caller = await getServerCaller();
+  const caller = await getPublicServerCaller();
   const [home, identity, profile, seo] = await Promise.all([
     caller.discovery.homepageSections({
       featuredLimit: 4,
@@ -198,3 +200,4 @@ export default async function HomePage() {
     </div>
   );
 }
+

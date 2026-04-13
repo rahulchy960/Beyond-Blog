@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import {
   CONTENT_TYPE,
@@ -28,6 +28,7 @@ import {
 import { slugifyText } from "@/lib/content/slug";
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
 import { createAuditLog } from "@/server/audit/log";
+import { revalidatePublicIndexes, revalidateTaxonomyPaths } from "@/lib/cache/revalidate";
 
 const contentListInclude = {
   category: {
@@ -66,11 +67,16 @@ const courseCoverSelect = {
   altText: true,
 } as const;
 
-const quizCoverSelect = {
+const quizDiscoverySelect = {
   id: true,
-  url: true,
-  thumbnailUrl: true,
-  altText: true,
+  title: true,
+  slug: true,
+  description: true,
+  isFeatured: true,
+  timeLimitMinutes: true,
+  passingScore: true,
+  publishedAt: true,
+  updatedAt: true,
 } as const;
 
 type SearchItem = {
@@ -103,6 +109,16 @@ type SearchItem = {
 
 function isMissingTableError(error: unknown, names: string[]) {
   const message = String(error ?? "");
+  const lowerMessage = message.toLowerCase();
+
+  if (
+    lowerMessage.includes("the column `(not available)` does not exist") ||
+    lowerMessage.includes("does not exist in the current database") ||
+    (lowerMessage.includes("column") && lowerMessage.includes("does not exist"))
+  ) {
+    return true;
+  }
+
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2021" || error.code === "P2022") {
       return names.some((name) => message.includes(name));
@@ -112,6 +128,135 @@ function isMissingTableError(error: unknown, names: string[]) {
     }
   }
   return false;
+}
+
+let discoveryQuizReadSchemaState: "unknown" | "ready" | "missing" = "unknown";
+let discoveryCourseReadSchemaState: "unknown" | "ready" | "missing" = "unknown";
+
+async function hasDiscoveryQuizReadSchema(db: Pick<PrismaClient, "$queryRaw">) {
+  if (discoveryQuizReadSchemaState === "ready") return true;
+  if (discoveryQuizReadSchemaState === "missing") return false;
+
+  try {
+    const rows = await db.$queryRaw<Array<{ columnName: string }>>`
+      SELECT CAST("column_name" AS text) AS "columnName"
+      FROM "information_schema"."columns"
+      WHERE "table_schema" = 'public'
+        AND "table_name" = 'Quiz'
+        AND "column_name" IN (
+          'id',
+          'title',
+          'slug',
+          'description',
+          'status',
+          'isFeatured',
+          'showAnswersAfterSubmit',
+          'allowMultipleAttempts',
+          'timeLimitMinutes',
+          'passingScore',
+          'contentId',
+          'courseId',
+          'courseLessonId',
+          'coverImageId',
+          'seoTitle',
+          'seoDescription',
+          'createdByAdminId',
+          'publishedAt',
+          'createdAt',
+          'updatedAt'
+        )
+    `;
+
+    const found = new Set(rows.map((row) => row.columnName));
+    const required = [
+      "id",
+      "title",
+      "slug",
+      "description",
+      "status",
+      "isFeatured",
+      "showAnswersAfterSubmit",
+      "allowMultipleAttempts",
+      "timeLimitMinutes",
+      "passingScore",
+      "contentId",
+      "courseId",
+      "courseLessonId",
+      "coverImageId",
+      "seoTitle",
+      "seoDescription",
+      "createdByAdminId",
+      "publishedAt",
+      "createdAt",
+      "updatedAt",
+    ];
+    const ready = required.every((column) => found.has(column));
+    discoveryQuizReadSchemaState = ready ? "ready" : "missing";
+    return ready;
+  } catch {
+    discoveryQuizReadSchemaState = "missing";
+    return false;
+  }
+}
+
+async function hasDiscoveryCourseReadSchema(db: Pick<PrismaClient, "$queryRaw">) {
+  if (discoveryCourseReadSchemaState === "ready") return true;
+  if (discoveryCourseReadSchemaState === "missing") return false;
+
+  try {
+    const rows = await db.$queryRaw<Array<{ columnName: string }>>`
+      SELECT CAST("column_name" AS text) AS "columnName"
+      FROM "information_schema"."columns"
+      WHERE "table_schema" = 'public'
+        AND "table_name" = 'Course'
+        AND "column_name" IN (
+          'id',
+          'title',
+          'slug',
+          'summary',
+          'descriptionHtml',
+          'descriptionJson',
+          'coverImageId',
+          'difficultyLevel',
+          'estimatedDurationMinutes',
+          'status',
+          'isFeatured',
+          'seoTitle',
+          'seoDescription',
+          'publishedAt',
+          'createdAt',
+          'createdByAdminId',
+          'updatedAt'
+        )
+    `;
+
+    const found = new Set(rows.map((row) => row.columnName));
+    const required = [
+      "id",
+      "title",
+      "slug",
+      "summary",
+      "descriptionHtml",
+      "descriptionJson",
+      "coverImageId",
+      "difficultyLevel",
+      "estimatedDurationMinutes",
+      "status",
+      "isFeatured",
+      "seoTitle",
+      "seoDescription",
+      "publishedAt",
+      "createdAt",
+      "createdByAdminId",
+      "updatedAt",
+    ];
+    const ready = required.every((column) => found.has(column));
+    discoveryCourseReadSchemaState = ready ? "ready" : "missing";
+    return ready;
+  } catch {
+    discoveryCourseReadSchemaState = "missing";
+    return false;
+  }
 }
 
 function getTextScore(text: string | null | undefined, query: string) {
@@ -147,6 +292,18 @@ function orderBySort(sort: "newest" | "oldest") {
   return sort === "oldest"
     ? [{ publishedAt: "asc" as const }, { createdAt: "asc" as const }]
     : [{ publishedAt: "desc" as const }, { updatedAt: "desc" as const }];
+}
+
+function getPageInfo(page: number, pageSize: number, total: number) {
+  const totalPages = total > 0 ? Math.ceil(total / pageSize) : 1;
+  return {
+    page,
+    pageSize,
+    total,
+    totalPages,
+    hasPreviousPage: page > 1,
+    hasNextPage: page < totalPages,
+  };
 }
 
 function toContentSearchItem(item: {
@@ -335,13 +492,23 @@ function normalizeTagInput(input: { name: string; slug?: string }) {
 
 export const discoveryRouter = createTRPCRouter({
   search: publicProcedure.input(publicSearchInputSchema).query(async ({ ctx, input }) => {
+    const requestedWindow = input.page * input.pageSize + input.pageSize;
+    const effectiveLimit = Math.min(180, Math.max(input.limit, requestedWindow));
     const query = input.query?.trim().toLowerCase();
     const perTypeLimit =
-      input.scope === "ALL" ? Math.max(8, Math.ceil(input.limit / 3) + 4) : input.limit;
+      input.scope === "ALL" ? Math.max(8, Math.ceil(effectiveLimit / 3) + 4) : effectiveLimit;
 
     const shouldLoadContent = ["ALL", "JOURNAL", "ARTICLE", "PROJECT"].includes(input.scope);
-    const shouldLoadCourses = ["ALL", "COURSE"].includes(input.scope);
-    const shouldLoadQuizzes = ["ALL", "QUIZ"].includes(input.scope);
+    const [courseReadable, quizReadable] = await Promise.all([
+      ["ALL", "COURSE"].includes(input.scope)
+        ? hasDiscoveryCourseReadSchema(ctx.db)
+        : Promise.resolve(false),
+      ["ALL", "QUIZ"].includes(input.scope)
+        ? hasDiscoveryQuizReadSchema(ctx.db)
+        : Promise.resolve(false),
+    ]);
+    const shouldLoadCourses = ["ALL", "COURSE"].includes(input.scope) && courseReadable;
+    const shouldLoadQuizzes = ["ALL", "QUIZ"].includes(input.scope) && quizReadable;
 
     const contentTypes =
       input.scope === "JOURNAL"
@@ -417,10 +584,7 @@ export const discoveryRouter = createTRPCRouter({
             },
             orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }, { updatedAt: "desc" }],
             take: perTypeLimit,
-            include: {
-              coverImage: { select: quizCoverSelect },
-              _count: { select: { questions: true, attempts: true } },
-            },
+            select: quizDiscoverySelect,
           })
         : Promise.resolve([]),
     ]);
@@ -480,12 +644,12 @@ export const discoveryRouter = createTRPCRouter({
               summary: quiz.description,
               isFeatured: quiz.isFeatured,
               publishedAt: quiz.publishedAt,
-              coverImage: quiz.coverImage,
+              coverImage: null,
               category: null,
               tags: [],
               meta: {
-                questionCount: quiz._count.questions,
-                attemptsCount: quiz._count.attempts,
+                questionCount: 0,
+                attemptsCount: 0,
               },
             }),
           )
@@ -505,13 +669,15 @@ export const discoveryRouter = createTRPCRouter({
         (a.publishedAt ? new Date(a.publishedAt).getTime() : 0);
     });
 
-    const items = sorted.slice(0, input.limit);
+    const total = sorted.length;
+    const start = (input.page - 1) * input.pageSize;
+    const items = sorted.slice(start, start + input.pageSize);
     const counts = {
-      JOURNAL: items.filter((item) => item.type === "JOURNAL").length,
-      ARTICLE: items.filter((item) => item.type === "ARTICLE").length,
-      PROJECT: items.filter((item) => item.type === "PROJECT").length,
-      COURSE: items.filter((item) => item.type === "COURSE").length,
-      QUIZ: items.filter((item) => item.type === "QUIZ").length,
+      JOURNAL: sorted.filter((item) => item.type === "JOURNAL").length,
+      ARTICLE: sorted.filter((item) => item.type === "ARTICLE").length,
+      PROJECT: sorted.filter((item) => item.type === "PROJECT").length,
+      COURSE: sorted.filter((item) => item.type === "COURSE").length,
+      QUIZ: sorted.filter((item) => item.type === "QUIZ").length,
     };
 
     return {
@@ -519,7 +685,8 @@ export const discoveryRouter = createTRPCRouter({
       scope: input.scope,
       items,
       counts,
-      total: items.length,
+      total,
+      pageInfo: getPageInfo(input.page, input.pageSize, total),
     };
   }),
 
@@ -543,13 +710,15 @@ export const discoveryRouter = createTRPCRouter({
           : {}),
       };
 
-      const [items, facetSource] = await Promise.all([
+      const [items, total, facetSource] = await Promise.all([
         ctx.db.content.findMany({
           where,
           orderBy: orderBySort(input.sort),
-          take: input.limit,
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
           include: contentListInclude,
         }),
+        ctx.db.content.count({ where }),
         ctx.db.content.findMany({
           where: {
             type: input.type,
@@ -575,12 +744,13 @@ export const discoveryRouter = createTRPCRouter({
               },
             },
           },
-          take: 500,
+          take: 300,
         }),
       ]);
 
       return {
         items,
+        pageInfo: getPageInfo(input.page, input.pageSize, total),
         facets: {
           categories: getTopCategoryFacet(facetSource, 16),
           tags: getTopTagFacet(facetSource, 20),
@@ -591,45 +761,69 @@ export const discoveryRouter = createTRPCRouter({
   listCourses: publicProcedure
     .input(publicCourseDiscoveryInputSchema)
     .query(async ({ ctx, input }) => {
-      try {
-        const items = await ctx.db.course.findMany({
-          where: {
-            status: COURSE_STATUS.PUBLISHED,
-            ...(input.featuredOnly ? { isFeatured: true } : {}),
-            ...(input.difficulty ? { difficultyLevel: input.difficulty } : {}),
-            ...(input.query
-              ? {
-                  OR: [
-                    { title: { contains: input.query, mode: "insensitive" } },
-                    { summary: { contains: input.query, mode: "insensitive" } },
-                    { descriptionHtml: { contains: input.query, mode: "insensitive" } },
-                  ],
-                }
-              : {}),
+      if (!(await hasDiscoveryCourseReadSchema(ctx.db))) {
+        return {
+          items: [],
+          pageInfo: getPageInfo(input.page, input.pageSize, 0),
+          facets: {
+            difficultyCounts: {},
           },
-          orderBy: orderBySort(input.sort),
-          take: input.limit,
-          include: {
-            coverImage: {
-              select: courseCoverSelect,
-            },
-            _count: {
-              select: {
-                sections: true,
-                lessons: true,
+        };
+      }
+
+      try {
+        const where = {
+          status: COURSE_STATUS.PUBLISHED,
+          ...(input.featuredOnly ? { isFeatured: true } : {}),
+          ...(input.difficulty ? { difficultyLevel: input.difficulty } : {}),
+          ...(input.query
+            ? {
+                OR: [
+                  { title: { contains: input.query, mode: "insensitive" as const } },
+                  { summary: { contains: input.query, mode: "insensitive" as const } },
+                  { descriptionHtml: { contains: input.query, mode: "insensitive" as const } },
+                ],
+              }
+            : {}),
+        };
+
+        const [items, total, difficultyGroups] = await Promise.all([
+          ctx.db.course.findMany({
+            where,
+            orderBy: orderBySort(input.sort),
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+            include: {
+              coverImage: {
+                select: courseCoverSelect,
+              },
+              _count: {
+                select: {
+                  sections: true,
+                  lessons: true,
+                },
               },
             },
-          },
-        });
+          }),
+          ctx.db.course.count({ where }),
+          ctx.db.course.groupBy({
+            by: ["difficultyLevel"],
+            where,
+            _count: {
+              _all: true,
+            },
+          }),
+        ]);
 
-        const difficultyCounts = items.reduce<Record<string, number>>((acc, item) => {
-          const key = item.difficultyLevel ?? "UNSPECIFIED";
-          acc[key] = (acc[key] ?? 0) + 1;
+        const difficultyCounts = difficultyGroups.reduce<Record<string, number>>((acc, group) => {
+          const key = group.difficultyLevel ?? "UNSPECIFIED";
+          acc[key] = (acc[key] ?? 0) + group._count._all;
           return acc;
         }, {});
 
         return {
           items,
+          pageInfo: getPageInfo(input.page, input.pageSize, total),
           facets: {
             difficultyCounts,
           },
@@ -638,6 +832,7 @@ export const discoveryRouter = createTRPCRouter({
         if (isMissingTableError(error, ["Course"])) {
           return {
             items: [],
+            pageInfo: getPageInfo(input.page, input.pageSize, 0),
             facets: {
               difficultyCounts: {},
             },
@@ -650,39 +845,55 @@ export const discoveryRouter = createTRPCRouter({
   listQuizzes: publicProcedure
     .input(publicQuizDiscoveryInputSchema)
     .query(async ({ ctx, input }) => {
-      try {
-        const items = await ctx.db.quiz.findMany({
-          where: {
-            status: QUIZ_STATUS.PUBLISHED,
-            ...(input.featuredOnly ? { isFeatured: true } : {}),
-            ...(input.query
-              ? {
-                  OR: [
-                    { title: { contains: input.query, mode: "insensitive" } },
-                    { description: { contains: input.query, mode: "insensitive" } },
-                  ],
-                }
-              : {}),
-          },
-          orderBy: orderBySort(input.sort),
-          take: input.limit,
-          include: {
-            coverImage: {
-              select: quizCoverSelect,
-            },
-            _count: {
-              select: {
-                questions: true,
-                attempts: true,
-              },
-            },
-          },
-        });
+      if (!(await hasDiscoveryQuizReadSchema(ctx.db))) {
+        return {
+          items: [],
+          pageInfo: getPageInfo(input.page, input.pageSize, 0),
+        };
+      }
 
-        return { items };
+      try {
+        const where = {
+          status: QUIZ_STATUS.PUBLISHED,
+          ...(input.featuredOnly ? { isFeatured: true } : {}),
+          ...(input.query
+            ? {
+                OR: [
+                  { title: { contains: input.query, mode: "insensitive" as const } },
+                  { description: { contains: input.query, mode: "insensitive" as const } },
+                ],
+              }
+            : {}),
+        };
+
+        const [items, total] = await Promise.all([
+          ctx.db.quiz.findMany({
+            where,
+            orderBy: orderBySort(input.sort),
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+            select: quizDiscoverySelect,
+          }),
+          ctx.db.quiz.count({ where }),
+        ]);
+
+        return {
+          items: items.map((item) => ({
+            ...item,
+            coverImage: null,
+            _count: {
+              questions: 0,
+              attempts: 0,
+            },
+          })),
+          pageInfo: getPageInfo(input.page, input.pageSize, total),
+        };
       } catch (error) {
         if (isMissingTableError(error, ["Quiz"])) {
-          return { items: [] };
+          return {
+            items: [],
+            pageInfo: getPageInfo(input.page, input.pageSize, 0),
+          };
         }
         throw error;
       }
@@ -705,19 +916,25 @@ export const discoveryRouter = createTRPCRouter({
       });
     }
 
-    const items = await ctx.db.content.findMany({
-      where: {
-        publishStatus: PUBLISH_STATUS.PUBLISHED,
-        tags: {
-          some: {
-            tagId: tag.id,
-          },
+    const where = {
+      publishStatus: PUBLISH_STATUS.PUBLISHED,
+      tags: {
+        some: {
+          tagId: tag.id,
         },
       },
-      orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
-      take: input.limit,
-      include: contentListInclude,
-    });
+    };
+
+    const [items, total] = await Promise.all([
+      ctx.db.content.findMany({
+        where,
+        orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
+        skip: (input.page - 1) * input.pageSize,
+        take: input.pageSize,
+        include: contentListInclude,
+      }),
+      ctx.db.content.count({ where }),
+    ]);
 
     return {
       tag: {
@@ -727,6 +944,7 @@ export const discoveryRouter = createTRPCRouter({
         usageCount: tag._count.contentTags,
       },
       items,
+      pageInfo: getPageInfo(input.page, input.pageSize, total),
     };
   }),
 
@@ -749,15 +967,21 @@ export const discoveryRouter = createTRPCRouter({
         });
       }
 
-      const items = await ctx.db.content.findMany({
-        where: {
-          publishStatus: PUBLISH_STATUS.PUBLISHED,
-          categoryId: category.id,
-        },
-        orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
-        take: input.limit,
-        include: contentListInclude,
-      });
+      const where = {
+        publishStatus: PUBLISH_STATUS.PUBLISHED,
+        categoryId: category.id,
+      };
+
+      const [items, total] = await Promise.all([
+        ctx.db.content.findMany({
+          where,
+          orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          include: contentListInclude,
+        }),
+        ctx.db.content.count({ where }),
+      ]);
 
       return {
         category: {
@@ -768,6 +992,7 @@ export const discoveryRouter = createTRPCRouter({
           usageCount: category._count.contents,
         },
         items,
+        pageInfo: getPageInfo(input.page, input.pageSize, total),
       };
     }),
 
@@ -816,6 +1041,10 @@ export const discoveryRouter = createTRPCRouter({
       }
 
       if (input.targetType === "COURSE") {
+        if (!(await hasDiscoveryCourseReadSchema(ctx.db))) {
+          return { items: [] as SearchItem[] };
+        }
+
         try {
           const current = await ctx.db.course.findFirst({
             where: {
@@ -886,6 +1115,10 @@ export const discoveryRouter = createTRPCRouter({
         }
       }
 
+      if (!(await hasDiscoveryQuizReadSchema(ctx.db))) {
+        return { items: [] as SearchItem[] };
+      }
+
       try {
         const current = await ctx.db.quiz.findFirst({
           where: {
@@ -908,10 +1141,7 @@ export const discoveryRouter = createTRPCRouter({
           },
           orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
           take: input.limit,
-          include: {
-            coverImage: { select: quizCoverSelect },
-            _count: { select: { attempts: true, questions: true } },
-          },
+          select: quizDiscoverySelect,
         });
 
         return {
@@ -925,12 +1155,12 @@ export const discoveryRouter = createTRPCRouter({
               summary: item.description,
               isFeatured: item.isFeatured,
               publishedAt: item.publishedAt,
-              coverImage: item.coverImage,
+              coverImage: null,
               category: null,
               tags: [],
               meta: {
-                questionCount: item._count.questions,
-                attemptsCount: item._count.attempts,
+                questionCount: 0,
+                attemptsCount: 0,
               },
             }),
           ),
@@ -965,55 +1195,61 @@ export const discoveryRouter = createTRPCRouter({
           include: contentListInclude,
         }),
       ]);
+      const [courseReadable, quizReadable] = await Promise.all([
+        hasDiscoveryCourseReadSchema(ctx.db),
+        hasDiscoveryQuizReadSchema(ctx.db),
+      ]);
 
       const [featuredCoursesResult, recentCoursesResult, featuredQuizzesResult, recentQuizzesResult] =
         await Promise.allSettled([
-          ctx.db.course.findMany({
-            where: {
-              status: COURSE_STATUS.PUBLISHED,
-              isFeatured: true,
-            },
-            orderBy: [{ publishedAt: "desc" }],
-            take: input.featuredLimit,
-            include: {
-              coverImage: { select: courseCoverSelect },
-              _count: { select: { lessons: true, sections: true } },
-            },
-          }),
-          ctx.db.course.findMany({
-            where: {
-              status: COURSE_STATUS.PUBLISHED,
-            },
-            orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
-            take: input.recentLimit,
-            include: {
-              coverImage: { select: courseCoverSelect },
-              _count: { select: { lessons: true, sections: true } },
-            },
-          }),
-          ctx.db.quiz.findMany({
-            where: {
-              status: QUIZ_STATUS.PUBLISHED,
-              isFeatured: true,
-            },
-            orderBy: [{ publishedAt: "desc" }],
-            take: input.featuredLimit,
-            include: {
-              coverImage: { select: quizCoverSelect },
-              _count: { select: { attempts: true, questions: true } },
-            },
-          }),
-          ctx.db.quiz.findMany({
-            where: {
-              status: QUIZ_STATUS.PUBLISHED,
-            },
-            orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
-            take: input.recentLimit,
-            include: {
-              coverImage: { select: quizCoverSelect },
-              _count: { select: { attempts: true, questions: true } },
-            },
-          }),
+          courseReadable
+            ? ctx.db.course.findMany({
+                where: {
+                  status: COURSE_STATUS.PUBLISHED,
+                  isFeatured: true,
+                },
+                orderBy: [{ publishedAt: "desc" }],
+                take: input.featuredLimit,
+                include: {
+                  coverImage: { select: courseCoverSelect },
+                  _count: { select: { lessons: true, sections: true } },
+                },
+              })
+            : Promise.resolve([]),
+          courseReadable
+            ? ctx.db.course.findMany({
+                where: {
+                  status: COURSE_STATUS.PUBLISHED,
+                },
+                orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
+                take: input.recentLimit,
+                include: {
+                  coverImage: { select: courseCoverSelect },
+                  _count: { select: { lessons: true, sections: true } },
+                },
+              })
+            : Promise.resolve([]),
+          quizReadable
+            ? ctx.db.quiz.findMany({
+                where: {
+                  status: QUIZ_STATUS.PUBLISHED,
+                  isFeatured: true,
+                },
+                orderBy: [{ publishedAt: "desc" }],
+                take: input.featuredLimit,
+                select: quizDiscoverySelect,
+              })
+            : Promise.resolve([]),
+          quizReadable
+            ? ctx.db.quiz.findMany({
+                where: {
+                  status: QUIZ_STATUS.PUBLISHED,
+                },
+                orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
+                take: input.recentLimit,
+                select: quizDiscoverySelect,
+              })
+            : Promise.resolve([]),
         ]);
 
       const featuredCourses =
@@ -1024,6 +1260,15 @@ export const discoveryRouter = createTRPCRouter({
         featuredQuizzesResult.status === "fulfilled" ? featuredQuizzesResult.value : [];
       const recentQuizzes =
         recentQuizzesResult.status === "fulfilled" ? recentQuizzesResult.value : [];
+
+      const normalizedFeaturedQuizzes = featuredQuizzes.map((quiz) => ({
+        ...quiz,
+        coverImage: null,
+        _count: {
+          questions: 0,
+          attempts: 0,
+        },
+      }));
 
       const recentMixed: SearchItem[] = [
         ...recentContent.map((item) => toContentSearchItem(item)),
@@ -1057,12 +1302,12 @@ export const discoveryRouter = createTRPCRouter({
             summary: quiz.description,
             isFeatured: quiz.isFeatured,
             publishedAt: quiz.publishedAt,
-            coverImage: quiz.coverImage,
+            coverImage: null,
             category: null,
             tags: [],
             meta: {
-              questionCount: quiz._count.questions,
-              attemptsCount: quiz._count.attempts,
+              questionCount: 0,
+              attemptsCount: 0,
             },
           }),
         ),
@@ -1077,7 +1322,7 @@ export const discoveryRouter = createTRPCRouter({
       return {
         featuredContent,
         featuredCourses,
-        featuredQuizzes,
+        featuredQuizzes: normalizedFeaturedQuizzes,
         recentMixed,
         discoveryTags: getTopTagFacet(recentContent, 10),
         discoveryCategories: getTopCategoryFacet(recentContent, 8),
@@ -1137,13 +1382,18 @@ export const discoveryRouter = createTRPCRouter({
       },
     });
 
+    revalidatePublicIndexes();
+    revalidateTaxonomyPaths({
+      tagSlugs: [tag.slug],
+    });
+
     return tag;
   }),
 
   updateTag: adminProcedure.input(adminUpdateTagInputSchema).mutation(async ({ ctx, input }) => {
     const existing = await ctx.db.tag.findUnique({
       where: { id: input.id },
-      select: { id: true },
+      select: { id: true, slug: true },
     });
     if (!existing) {
       throw new TRPCError({
@@ -1177,6 +1427,11 @@ export const discoveryRouter = createTRPCRouter({
         name: updated.name,
         slug: updated.slug,
       },
+    });
+
+    revalidatePublicIndexes();
+    revalidateTaxonomyPaths({
+      tagSlugs: [existing.slug, updated.slug],
     });
 
     return updated;
@@ -1222,6 +1477,11 @@ export const discoveryRouter = createTRPCRouter({
         name: current.name,
         slug: current.slug,
       },
+    });
+
+    revalidatePublicIndexes();
+    revalidateTaxonomyPaths({
+      tagSlugs: [current.slug],
     });
 
     return { id: input.id };
@@ -1286,6 +1546,11 @@ export const discoveryRouter = createTRPCRouter({
         },
       });
 
+      revalidatePublicIndexes();
+      revalidateTaxonomyPaths({
+        categorySlug: category.slug,
+      });
+
       return category;
     }),
 
@@ -1294,7 +1559,7 @@ export const discoveryRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.category.findUnique({
         where: { id: input.id },
-        select: { id: true },
+        select: { id: true, slug: true },
       });
 
       if (!existing) {
@@ -1334,6 +1599,16 @@ export const discoveryRouter = createTRPCRouter({
           slug: updated.slug,
         },
       });
+
+      revalidatePublicIndexes();
+      revalidateTaxonomyPaths({
+        categorySlug: updated.slug,
+      });
+      if (existing.slug !== updated.slug) {
+        revalidateTaxonomyPaths({
+          categorySlug: existing.slug,
+        });
+      }
 
       return updated;
     }),
@@ -1380,6 +1655,11 @@ export const discoveryRouter = createTRPCRouter({
           name: current.name,
           slug: current.slug,
         },
+      });
+
+      revalidatePublicIndexes();
+      revalidateTaxonomyPaths({
+        categorySlug: current.slug,
       });
 
       return { id: input.id };

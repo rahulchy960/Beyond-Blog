@@ -36,6 +36,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { TableSkeleton } from "@/components/ui/loading-skeletons";
 import { RetryPanel } from "@/components/ui/retry-panel";
+import { DataPagination } from "@/components/ui/data-pagination";
+import { queryStaleTimes } from "@/lib/trpc/query-presets";
 
 type ModerationStatus = "PENDING" | "VISIBLE" | "HIDDEN" | "DELETED";
 
@@ -48,18 +50,25 @@ export function AdminCommentsModerationScreen() {
     "all",
   );
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
   const listInput = useMemo(
     () => ({
       query: query || undefined,
       status: status === "all" ? undefined : status,
       targetType: targetType === "all" ? undefined : targetType,
-      limit: 120,
+      page,
+      pageSize,
     }),
-    [query, status, targetType],
+    [page, pageSize, query, status, targetType],
   );
 
-  const listQuery = useQuery(trpc.interaction.listCommentsAdmin.queryOptions(listInput));
+  const listQuery = useQuery(
+    trpc.interaction.listCommentsAdmin.queryOptions(listInput, {
+      staleTime: queryStaleTimes.adminLists,
+    }),
+  );
 
   const refresh = async () => {
     await Promise.all([
@@ -105,9 +114,18 @@ export function AdminCommentsModerationScreen() {
           query={query}
           status={status}
           targetType={targetType}
-          onQueryChange={setQuery}
-          onStatusChange={setStatus}
-          onTargetTypeChange={setTargetType}
+          onQueryChange={(value) => {
+            setQuery(value);
+            setPage(1);
+          }}
+          onStatusChange={(value) => {
+            setStatus(value);
+            setPage(1);
+          }}
+          onTargetTypeChange={(value) => {
+            setTargetType(value);
+            setPage(1);
+          }}
         />
       </AnimatedPageWrapper>
 
@@ -245,6 +263,14 @@ export function AdminCommentsModerationScreen() {
                 </div>
               </article>
             ))}
+
+            <DataPagination
+              page={listQuery.data?.page ?? page}
+              pageSize={listQuery.data?.pageSize ?? pageSize}
+              totalItems={listQuery.data?.total ?? 0}
+              disabled={listQuery.isFetching}
+              onPageChange={setPage}
+            />
           </div>
         )}
       </AnimatedPageWrapper>

@@ -51,7 +51,8 @@ export const adminListCommentsInputSchema = z.object({
   query: z.string().trim().max(180).optional(),
   status: z.enum(COMMENT_STATUSES).optional(),
   targetType: z.enum(INTERACTION_TARGET_TYPES).optional(),
-  limit: z.number().int().min(1).max(200).default(80),
+  page: z.number().int().min(1).max(500).default(1),
+  pageSize: z.number().int().min(6).max(60).default(20),
 });
 
 export const updateCommentStatusInputSchema = z.object({

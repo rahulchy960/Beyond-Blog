@@ -29,6 +29,7 @@ import {
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
 import { getVisitorTokenHash } from "@/lib/interaction/visitor";
 import { createAuditLog } from "@/server/audit/log";
+import { revalidateQuizPaths } from "@/lib/cache/revalidate";
 
 function isMissingQuizSchemaError(error: unknown) {
   const message =
@@ -38,18 +39,19 @@ function isMissingQuizSchemaError(error: unknown) {
     typeof (error as { message?: unknown }).message === "string"
       ? (error as { message: string }).message
       : String(error ?? "");
+  const lowerMessage = message.toLowerCase();
   const code =
     typeof error === "object" && error !== null && "code" in error
       ? String((error as { code?: unknown }).code ?? "")
       : "";
-  if (message.includes('relation "Quiz" does not exist')) {
+  if (lowerMessage.includes('relation "quiz" does not exist')) {
     return true;
   }
 
   if (
-    message.includes("does not exist in the current database") ||
-    message.includes("The column `(not available)` does not exist") ||
-    (message.includes("column") && message.includes("does not exist"))
+    lowerMessage.includes("does not exist in the current database") ||
+    lowerMessage.includes("the column `(not available)` does not exist") ||
+    (lowerMessage.includes("column") && lowerMessage.includes("does not exist"))
   ) {
     return true;
   }
@@ -92,6 +94,16 @@ function isQuizIncludeFallbackError(error: unknown) {
 
 function isMissingTableError(error: unknown, tableNames: string[]) {
   const message = String(error ?? "");
+  const lowerMessage = message.toLowerCase();
+
+  if (
+    lowerMessage.includes("the column `(not available)` does not exist") ||
+    lowerMessage.includes("does not exist in the current database") ||
+    (lowerMessage.includes("column") && lowerMessage.includes("does not exist"))
+  ) {
+    return true;
+  }
+
   const hasKnownCode =
     error instanceof Prisma.PrismaClientKnownRequestError &&
     (error.code === "P2021" || error.code === "P2010");
@@ -117,7 +129,7 @@ async function hasQuizReadSchema(
 
   try {
     const rows = await db.$queryRaw<Array<{ columnName: string }>>`
-      SELECT "column_name" AS "columnName"
+      SELECT CAST("column_name" AS text) AS "columnName"
       FROM "information_schema"."columns"
       WHERE "table_schema" = 'public'
         AND "table_name" = 'Quiz'
@@ -128,7 +140,19 @@ async function hasQuizReadSchema(
           'description',
           'status',
           'isFeatured',
+          'showAnswersAfterSubmit',
+          'allowMultipleAttempts',
+          'timeLimitMinutes',
+          'passingScore',
+          'contentId',
+          'courseId',
+          'courseLessonId',
+          'coverImageId',
+          'seoTitle',
+          'seoDescription',
+          'createdByAdminId',
           'publishedAt',
+          'createdAt',
           'updatedAt'
         )
     `;
@@ -141,7 +165,19 @@ async function hasQuizReadSchema(
       "description",
       "status",
       "isFeatured",
+      "showAnswersAfterSubmit",
+      "allowMultipleAttempts",
+      "timeLimitMinutes",
+      "passingScore",
+      "contentId",
+      "courseId",
+      "courseLessonId",
+      "coverImageId",
+      "seoTitle",
+      "seoDescription",
+      "createdByAdminId",
       "publishedAt",
+      "createdAt",
       "updatedAt",
     ];
     const ready = required.every((column) => found.has(column));
@@ -345,6 +381,29 @@ const quizCoverSelect = {
   altText: true,
 } as const;
 
+const quizListSelect = {
+  id: true,
+  title: true,
+  slug: true,
+  description: true,
+  status: true,
+  isFeatured: true,
+  publishedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  showAnswersAfterSubmit: true,
+  allowMultipleAttempts: true,
+  timeLimitMinutes: true,
+  passingScore: true,
+  contentId: true,
+  courseId: true,
+  courseLessonId: true,
+  coverImageId: true,
+  seoTitle: true,
+  seoDescription: true,
+  createdByAdminId: true,
+} as const;
+
 const adminQuizInclude = {
   coverImage: {
     select: quizCoverSelect,
@@ -441,6 +500,7 @@ export const quizRouter = createTRPCRouter({
       },
       select: {
         id: true,
+        slug: true,
       },
     });
 
@@ -456,6 +516,10 @@ export const quizRouter = createTRPCRouter({
       },
     });
 
+    revalidateQuizPaths({
+      slug: created.slug,
+    });
+
     return created;
   }),
 
@@ -465,6 +529,7 @@ export const quizRouter = createTRPCRouter({
       select: {
         id: true,
         publishedAt: true,
+        slug: true,
       },
     });
 
@@ -525,6 +590,7 @@ export const quizRouter = createTRPCRouter({
       },
       select: {
         id: true,
+        slug: true,
       },
     });
 
@@ -540,6 +606,11 @@ export const quizRouter = createTRPCRouter({
       },
     });
 
+    revalidateQuizPaths({
+      slug: updated.slug,
+      previousSlug: existing.slug,
+    });
+
     return updated;
   }),
 
@@ -549,6 +620,7 @@ export const quizRouter = createTRPCRouter({
       select: {
         id: true,
         title: true,
+        slug: true,
       },
     });
 
@@ -567,12 +639,23 @@ export const quizRouter = createTRPCRouter({
       },
     });
 
+    if (existing) {
+      revalidateQuizPaths({
+        slug: existing.slug,
+      });
+    }
+
     return { id: input.id };
   }),
 
   listForAdmin: adminProcedure.input(listAdminQuizzesInputSchema).query(async ({ ctx, input }) => {
     if (!(await hasQuizReadSchema(ctx.db))) {
-      return { items: [] };
+      return {
+        items: [],
+        total: 0,
+        page: input.page,
+        pageSize: input.pageSize,
+      };
     }
 
     const where = {
@@ -605,64 +688,44 @@ export const quizRouter = createTRPCRouter({
     const orderBy =
       input.sort === "newest"
         ? [{ createdAt: "desc" as const }]
-        : [{ updatedAt: "desc" as const }, { createdAt: "desc" as const }];
+        : [{ updatedAt: "desc" as const }, { createdAt: "desc" as const }, { id: "desc" as const }];
 
-    let items;
     try {
-      items = await ctx.db.quiz.findMany({
-        where,
-        orderBy,
-        take: input.limit,
-        include: {
-          coverImage: {
-            select: quizCoverSelect,
-          },
-          _count: {
-            select: {
-              questions: true,
-              attempts: true,
-            },
-          },
-        },
-      });
-    } catch (error) {
-      if (isMissingQuizSchemaError(error)) {
-        return { items: [] };
-      }
-
-      if (!isQuizIncludeFallbackError(error)) {
-        throw error;
-      }
-
-      try {
-        const fallbackItems = await ctx.db.quiz.findMany({
+      const [items, total] = await Promise.all([
+        ctx.db.quiz.findMany({
           where,
           orderBy,
-          take: input.limit,
-          include: {
-            _count: {
-              select: {
-                questions: true,
-                attempts: true,
-              },
-            },
-          },
-        });
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          select: quizListSelect,
+        }),
+        ctx.db.quiz.count({ where }),
+      ]);
 
-        items = fallbackItems.map((item) => ({
+      return {
+        items: items.map((item) => ({
           ...item,
           coverImage: null,
-        }));
-      } catch (fallbackError) {
-        if (isMissingQuizSchemaError(fallbackError)) {
-          return { items: [] };
-        }
-
-        throw fallbackError;
+          _count: {
+            questions: 0,
+            attempts: 0,
+          },
+        })),
+        total,
+        page: input.page,
+        pageSize: input.pageSize,
+      };
+    } catch (error) {
+      if (isMissingQuizSchemaError(error)) {
+        return {
+          items: [],
+          total: 0,
+          page: input.page,
+          pageSize: input.pageSize,
+        };
       }
+      throw error;
     }
-
-    return { items };
   }),
 
   getById: adminProcedure.input(quizByIdInputSchema).query(async ({ ctx, input }) => {
@@ -745,6 +808,7 @@ export const quizRouter = createTRPCRouter({
       select: {
         id: true,
         status: true,
+        slug: true,
       },
     });
 
@@ -757,6 +821,10 @@ export const quizRouter = createTRPCRouter({
       metadata: {
         status: updated.status,
       },
+    });
+
+    revalidateQuizPaths({
+      slug: updated.slug,
     });
 
     return updated;
@@ -772,6 +840,7 @@ export const quizRouter = createTRPCRouter({
       select: {
         id: true,
         status: true,
+        slug: true,
       },
     });
 
@@ -786,6 +855,10 @@ export const quizRouter = createTRPCRouter({
       },
     });
 
+    revalidateQuizPaths({
+      slug: updated.slug,
+    });
+
     return updated;
   }),
 
@@ -798,6 +871,7 @@ export const quizRouter = createTRPCRouter({
       select: {
         id: true,
         status: true,
+        slug: true,
       },
     });
 
@@ -810,6 +884,10 @@ export const quizRouter = createTRPCRouter({
       metadata: {
         status: updated.status,
       },
+    });
+
+    revalidateQuizPaths({
+      slug: updated.slug,
     });
 
     return updated;
@@ -838,6 +916,7 @@ export const quizRouter = createTRPCRouter({
         select: {
           id: true,
           isFeatured: true,
+          slug: true,
         },
       });
 
@@ -850,6 +929,10 @@ export const quizRouter = createTRPCRouter({
         metadata: {
           isFeatured: updated.isFeatured,
         },
+      });
+
+      revalidateQuizPaths({
+        slug: updated.slug,
       });
 
       return updated;
@@ -1392,7 +1475,7 @@ export const quizRouter = createTRPCRouter({
       }
 
       try {
-        return ctx.db.quiz.findMany({
+        const items = await ctx.db.quiz.findMany({
           where: {
             status: QUIZ_STATUS.PUBLISHED,
             ...(input.featuredOnly ? { isFeatured: true } : {}),
@@ -1417,67 +1500,18 @@ export const quizRouter = createTRPCRouter({
           },
           orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }, { updatedAt: "desc" }],
           take: input.limit,
-          include: {
-            coverImage: {
-              select: quizCoverSelect,
-            },
-            _count: {
-              select: {
-                questions: true,
-                attempts: true,
-              },
-            },
-          },
+          select: quizListSelect,
         });
-      } catch (error) {
-        if (isQuizIncludeFallbackError(error)) {
-          try {
-            const fallback = await ctx.db.quiz.findMany({
-              where: {
-                status: QUIZ_STATUS.PUBLISHED,
-                ...(input.featuredOnly ? { isFeatured: true } : {}),
-                ...(input.query
-                  ? {
-                      OR: [
-                        {
-                          title: {
-                            contains: input.query,
-                            mode: "insensitive",
-                          },
-                        },
-                        {
-                          description: {
-                            contains: input.query,
-                            mode: "insensitive",
-                          },
-                        },
-                      ],
-                    }
-                  : {}),
-              },
-              orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }, { updatedAt: "desc" }],
-              take: input.limit,
-              include: {
-                _count: {
-                  select: {
-                    questions: true,
-                    attempts: true,
-                  },
-                },
-              },
-            });
-            return fallback.map((quiz) => ({
-              ...quiz,
-              coverImage: null,
-            }));
-          } catch (fallbackError) {
-            if (isMissingQuizSchemaError(fallbackError)) {
-              return [];
-            }
-            throw fallbackError;
-          }
-        }
 
+        return items.map((item) => ({
+          ...item,
+          coverImage: null,
+          _count: {
+            questions: 0,
+            attempts: 0,
+          },
+        }));
+      } catch (error) {
         if (isMissingQuizSchemaError(error)) {
           return [];
         }

@@ -4,6 +4,7 @@ import { MEDIA_TYPE } from "@/lib/content/enums";
 import { adminProfileSettingsInputSchema, normalizeOptionalText } from "@/lib/profile/schemas";
 import { defaultSeoSettings, mergeSeoSettings } from "@/lib/seo/config";
 import { adminSeoSettingsInputSchema } from "@/lib/seo/schemas";
+import { revalidateProfileAndSeoPaths } from "@/lib/cache/revalidate";
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
 import { createAuditLog } from "@/server/audit/log";
 
@@ -216,6 +217,8 @@ export const profileRouter = createTRPCRouter({
             hasProfileImage: Boolean(updated.profileImageId),
           },
         });
+
+        revalidateProfileAndSeoPaths();
 
         return updated;
       } catch (error) {
@@ -432,6 +435,8 @@ export const profileRouter = createTRPCRouter({
             noIndexSearchPage: input.noIndexSearchPage,
           },
         });
+
+        revalidateProfileAndSeoPaths();
 
         const resolved = mergeSeoSettings({
           siteTitle: updated.siteTitle,

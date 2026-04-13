@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { SearchIcon, ShieldCheckIcon } from "lucide-react";
 import { useTRPC } from "@/hooks/use-trpc";
@@ -13,6 +13,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { RetryPanel } from "@/components/ui/retry-panel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { queryStaleTimes } from "@/lib/trpc/query-presets";
 
 const timeRangeOptions = [
   { label: "Last 7 days", value: "7d" },
@@ -51,12 +53,21 @@ export function AdminAuditLogsScreen() {
       action: action.trim() ? action.trim() : undefined,
       entityType: entityType.trim() ? entityType.trim() : undefined,
       timeRange,
-      limit: 50,
+      limit: 30,
     }),
     [action, entityType, query, timeRange],
   );
 
-  const listQuery = useQuery(trpc.analytics.listAuditLogs.queryOptions(input));
+  const listQuery = useInfiniteQuery(
+    trpc.analytics.listAuditLogs.infiniteQueryOptions(input, {
+      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      staleTime: queryStaleTimes.analytics,
+    }),
+  );
+  const items = useMemo(
+    () => listQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [listQuery.data?.pages],
+  );
 
   return (
     <div className="space-y-7">
@@ -118,7 +129,7 @@ export function AdminAuditLogsScreen() {
           error={listQuery.error}
           onRetry={() => listQuery.refetch()}
         />
-      ) : listQuery.data.items.length === 0 ? (
+      ) : items.length === 0 ? (
         <EmptyState
           icon={ShieldCheckIcon}
           title="No audit events found"
@@ -126,7 +137,7 @@ export function AdminAuditLogsScreen() {
         />
       ) : (
         <div className="grid gap-3">
-          {listQuery.data.items.map((item) => (
+          {items.map((item) => (
             <Card key={item.id} className="surface-panel">
               <CardHeader className="space-y-2 pb-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -151,6 +162,19 @@ export function AdminAuditLogsScreen() {
               </CardContent>
             </Card>
           ))}
+
+          {listQuery.hasNextPage ? (
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => listQuery.fetchNextPage()}
+                disabled={listQuery.isFetchingNextPage}
+              >
+                {listQuery.isFetchingNextPage ? "Loading..." : "Load More"}
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

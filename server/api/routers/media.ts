@@ -13,6 +13,7 @@ import {
 import { createTRPCRouter, adminProcedure } from "@/server/api/trpc";
 import { deleteProviderAsset } from "@/server/media/provider";
 import { createAuditLog } from "@/server/audit/log";
+import { revalidatePublicIndexes } from "@/lib/cache/revalidate";
 
 export const mediaRouter = createTRPCRouter({
   list: adminProcedure.input(listMediaInputSchema).query(async ({ ctx, input }) => {
@@ -130,6 +131,8 @@ export const mediaRouter = createTRPCRouter({
         },
       });
 
+      revalidatePublicIndexes();
+
       return updated;
     }),
 
@@ -165,6 +168,8 @@ export const mediaRouter = createTRPCRouter({
         storageKey: existing.storageKey,
       },
     });
+
+    revalidatePublicIndexes();
 
     await deleteProviderAsset({
       storageProvider: existing.storageProvider,
@@ -206,6 +211,8 @@ export const mediaRouter = createTRPCRouter({
         },
       });
 
+      revalidatePublicIndexes();
+
       return updated;
     }),
 
@@ -225,6 +232,8 @@ export const mediaRouter = createTRPCRouter({
         entityType: "MEDIA_ASSET",
         entityId: updated.id,
       });
+
+      revalidatePublicIndexes();
 
       return updated;
     }),
@@ -260,6 +269,8 @@ export const mediaRouter = createTRPCRouter({
           url: created.url,
         },
       });
+
+      revalidatePublicIndexes();
 
       return created;
     }),

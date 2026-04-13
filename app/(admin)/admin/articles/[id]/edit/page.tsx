@@ -1,5 +1,11 @@
 import { CONTENT_TYPE } from "@/lib/content/enums";
-import { ContentEditorForm } from "@/components/content/content-editor-form";
+import dynamic from "next/dynamic";
+import { EditorPageSkeleton } from "@/components/ui/loading-skeletons";
+
+const ContentEditorForm = dynamic(
+  () => import("@/components/content/content-editor-form").then((mod) => mod.ContentEditorForm),
+  { loading: () => <EditorPageSkeleton /> },
+);
 
 type EditArticlePageProps = {
   params: Promise<{ id: string }>;

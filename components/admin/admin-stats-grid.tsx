@@ -17,6 +17,7 @@ import { useTRPC } from "@/hooks/use-trpc";
 import { MetricCard } from "@/components/ui/metric-card";
 import { MetricCardSkeletonGrid } from "@/components/ui/loading-skeletons";
 import { RetryPanel } from "@/components/ui/retry-panel";
+import { queryStaleTimes } from "@/lib/trpc/query-presets";
 
 const METRIC_ICONS = [
   BookOpenTextIcon,
@@ -32,7 +33,11 @@ const METRIC_ICONS = [
 
 export function AdminStatsGrid() {
   const trpc = useTRPC();
-  const dashboardStatsQuery = useQuery(trpc.analytics.getDashboardSummary.queryOptions());
+  const dashboardStatsQuery = useQuery(
+    trpc.analytics.getDashboardSummary.queryOptions(undefined, {
+      staleTime: queryStaleTimes.analytics,
+    }),
+  );
 
   if (dashboardStatsQuery.isPending) {
     return <MetricCardSkeletonGrid />;

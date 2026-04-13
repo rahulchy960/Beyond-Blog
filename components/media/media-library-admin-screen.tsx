@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, VideoIcon } from "lucide-react";
 import { toast } from "sonner";
 import { type MediaType } from "@/lib/content/enums";
@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { MediaGridSkeleton } from "@/components/ui/loading-skeletons";
 import { PageHeader } from "@/components/ui/page-header";
 import { RetryPanel } from "@/components/ui/retry-panel";
+import { queryStaleTimes } from "@/lib/trpc/query-presets";
 
 export function MediaLibraryAdminScreen() {
   const trpc = useTRPC();
@@ -38,13 +39,19 @@ export function MediaLibraryAdminScreen() {
   const [videoProvider, setVideoProvider] = useState("external");
   const [videoProviderAssetId, setVideoProviderAssetId] = useState("");
 
-  const mediaQuery = useQuery(
-    trpc.media.list.queryOptions({
-      type: type === "all" ? undefined : type,
-      query: query || undefined,
-      limit: 80,
-      sort: "newest",
-    }),
+  const mediaQuery = useInfiniteQuery(
+    trpc.media.list.infiniteQueryOptions(
+      {
+        type: type === "all" ? undefined : type,
+        query: query || undefined,
+        limit: 24,
+        sort: "newest",
+      },
+      {
+        getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+        staleTime: queryStaleTimes.mediaLibrary,
+      },
+    ),
   );
 
   const refreshMedia = async () => {
@@ -69,7 +76,10 @@ export function MediaLibraryAdminScreen() {
     }),
   );
 
-  const items = useMemo(() => mediaQuery.data?.items ?? [], [mediaQuery.data?.items]);
+  const items = useMemo(
+    () => mediaQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [mediaQuery.data?.pages],
+  );
 
   return (
     <div className="space-y-7">
@@ -111,7 +121,21 @@ export function MediaLibraryAdminScreen() {
           retryLabel="Reload media"
         />
       ) : (
-        <MediaLibraryGrid items={items} />
+        <div className="space-y-4">
+          <MediaLibraryGrid items={items} />
+          {mediaQuery.hasNextPage ? (
+            <div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => mediaQuery.fetchNextPage()}
+                disabled={mediaQuery.isFetchingNextPage}
+              >
+                {mediaQuery.isFetchingNextPage ? "Loading..." : "Load More"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       )}
 
       <Dialog open={isExternalVideoOpen} onOpenChange={setIsExternalVideoOpen}>

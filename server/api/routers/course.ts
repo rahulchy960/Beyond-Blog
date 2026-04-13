@@ -31,6 +31,7 @@ import {
 } from "@/lib/course/schemas";
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
 import { createAuditLog } from "@/server/audit/log";
+import { revalidateCoursePaths } from "@/lib/cache/revalidate";
 
 function isMissingCourseTableError(error: unknown) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -439,6 +440,10 @@ export const courseRouter = createTRPCRouter({
       },
     });
 
+    revalidateCoursePaths({
+      slug: created.slug,
+    });
+
     return normalizeCoursePayload(created);
   }),
 
@@ -513,6 +518,11 @@ export const courseRouter = createTRPCRouter({
       },
     });
 
+    revalidateCoursePaths({
+      slug: updated.slug,
+      previousSlug: existing.slug,
+    });
+
     return normalizeCoursePayload(updated);
   }),
 
@@ -522,6 +532,7 @@ export const courseRouter = createTRPCRouter({
       select: {
         id: true,
         title: true,
+        slug: true,
       },
     });
 
@@ -540,59 +551,76 @@ export const courseRouter = createTRPCRouter({
       },
     });
 
+    if (existing) {
+      revalidateCoursePaths({
+        slug: existing.slug,
+      });
+    }
+
     return { id: input.id };
   }),
 
   listForAdmin: adminProcedure.input(listAdminCoursesInputSchema).query(async ({ ctx, input }) => {
-    const items = await ctx.db.course.findMany({
-      where: {
-        ...(input.status ? { status: input.status } : {}),
-        ...(input.featured === "featured"
-          ? { isFeatured: true }
-          : input.featured === "not_featured"
-            ? { isFeatured: false }
-            : {}),
-        ...(input.query
-          ? {
-              OR: [
-                {
-                  title: {
-                    contains: input.query,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  summary: {
-                    contains: input.query,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  slug: {
-                    contains: input.query,
-                    mode: "insensitive",
-                  },
-                },
-              ],
-            }
+    const where = {
+      ...(input.status ? { status: input.status } : {}),
+      ...(input.featured === "featured"
+        ? { isFeatured: true }
+        : input.featured === "not_featured"
+          ? { isFeatured: false }
           : {}),
-      },
-      orderBy: [{ updatedAt: "desc" }],
-      take: input.limit,
-      include: {
-        coverImage: {
-          select: courseCoverSelect,
-        },
-        _count: {
-          select: {
-            sections: true,
-            lessons: true,
+      ...(input.query
+        ? {
+            OR: [
+              {
+                title: {
+                  contains: input.query,
+                  mode: "insensitive" as const,
+                },
+              },
+              {
+                summary: {
+                  contains: input.query,
+                  mode: "insensitive" as const,
+                },
+              },
+              {
+                slug: {
+                  contains: input.query,
+                  mode: "insensitive" as const,
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      ctx.db.course.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        skip: (input.page - 1) * input.pageSize,
+        take: input.pageSize,
+        include: {
+          coverImage: {
+            select: courseCoverSelect,
+          },
+          _count: {
+            select: {
+              sections: true,
+              lessons: true,
+            },
           },
         },
-      },
-    });
+      }),
+      ctx.db.course.count({ where }),
+    ]);
 
-    return { items };
+    return {
+      items,
+      total,
+      page: input.page,
+      pageSize: input.pageSize,
+    };
   }),
 
   getById: adminProcedure.input(courseByIdInputSchema).query(async ({ ctx, input }) => {
@@ -628,6 +656,7 @@ export const courseRouter = createTRPCRouter({
       select: {
         id: true,
         status: true,
+        slug: true,
       },
     });
 
@@ -640,6 +669,10 @@ export const courseRouter = createTRPCRouter({
       metadata: {
         status: updated.status,
       },
+    });
+
+    revalidateCoursePaths({
+      slug: updated.slug,
     });
 
     return updated;
@@ -655,6 +688,7 @@ export const courseRouter = createTRPCRouter({
       select: {
         id: true,
         status: true,
+        slug: true,
       },
     });
 
@@ -669,6 +703,10 @@ export const courseRouter = createTRPCRouter({
       },
     });
 
+    revalidateCoursePaths({
+      slug: updated.slug,
+    });
+
     return updated;
   }),
 
@@ -681,6 +719,7 @@ export const courseRouter = createTRPCRouter({
       select: {
         id: true,
         status: true,
+        slug: true,
       },
     });
 
@@ -693,6 +732,10 @@ export const courseRouter = createTRPCRouter({
       metadata: {
         status: updated.status,
       },
+    });
+
+    revalidateCoursePaths({
+      slug: updated.slug,
     });
 
     return updated;
@@ -721,6 +764,7 @@ export const courseRouter = createTRPCRouter({
         select: {
           id: true,
           isFeatured: true,
+          slug: true,
         },
       });
 
@@ -733,6 +777,10 @@ export const courseRouter = createTRPCRouter({
         metadata: {
           isFeatured: updated.isFeatured,
         },
+      });
+
+      revalidateCoursePaths({
+        slug: updated.slug,
       });
 
       return updated;

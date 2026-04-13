@@ -26,7 +26,7 @@ export function GracefulMedia({
   fallbackIcon: FallbackIcon = ImageOffIcon,
   className,
   imageClassName,
-  unoptimized = true,
+  unoptimized = false,
   fill = false,
   width = 1600,
   height = 900,

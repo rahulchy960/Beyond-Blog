@@ -10,10 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RetryPanel } from "@/components/ui/retry-panel";
 import { Skeleton } from "@/components/ui/skeleton";
+import { queryStaleTimes } from "@/lib/trpc/query-presets";
 
 export function AdminInteractionInsights() {
   const trpc = useTRPC();
-  const summaryQuery = useQuery(trpc.analytics.getDashboardSummary.queryOptions());
+  const summaryQuery = useQuery(
+    trpc.analytics.getDashboardSummary.queryOptions(undefined, {
+      staleTime: queryStaleTimes.analytics,
+    }),
+  );
 
   if (summaryQuery.isPending) {
     return (

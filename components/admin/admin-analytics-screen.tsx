@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { RetryPanel } from "@/components/ui/retry-panel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { queryStaleTimes } from "@/lib/trpc/query-presets";
 
 const timeRangeOptions = [
   { label: "Last 7 days", value: "7d" },
@@ -83,6 +84,8 @@ export function AdminAnalyticsScreen() {
   const detailQuery = useQuery(
     trpc.analytics.getAnalyticsDetail.queryOptions({
       timeRange,
+    }, {
+      staleTime: queryStaleTimes.analytics,
     }),
   );
 
@@ -91,6 +94,8 @@ export function AdminAnalyticsScreen() {
       timeRange,
       metric,
       limit: 8,
+    }, {
+      staleTime: queryStaleTimes.analytics,
     }),
   );
 

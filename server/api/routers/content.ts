@@ -18,6 +18,7 @@ import {
 } from "@/lib/content/schemas";
 import { slugifyText } from "@/lib/content/slug";
 import { createAuditLog } from "@/server/audit/log";
+import { revalidateContentPaths } from "@/lib/cache/revalidate";
 
 const adminContentInclude = {
   category: true,
@@ -266,6 +267,13 @@ export const contentRouter = createTRPCRouter({
       },
     });
 
+    revalidateContentPaths({
+      type: created.type,
+      slug: created.slug,
+      categorySlug: created.category?.slug ?? null,
+      tagSlugs: created.tags.map((entry) => entry.tag.slug),
+    });
+
     return toAdminContentPayload(created);
   }),
 
@@ -346,6 +354,14 @@ export const contentRouter = createTRPCRouter({
       },
     });
 
+    revalidateContentPaths({
+      type: updated.type,
+      slug: updated.slug,
+      previousSlug: existing.slug,
+      categorySlug: updated.category?.slug ?? null,
+      tagSlugs: updated.tags.map((entry) => entry.tag.slug),
+    });
+
     return toAdminContentPayload(updated);
   }),
 
@@ -356,6 +372,21 @@ export const contentRouter = createTRPCRouter({
         id: true,
         title: true,
         type: true,
+        slug: true,
+        category: {
+          select: {
+            slug: true,
+          },
+        },
+        tags: {
+          select: {
+            tag: {
+              select: {
+                slug: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -374,6 +405,15 @@ export const contentRouter = createTRPCRouter({
         type: existing?.type ?? null,
       },
     });
+
+    if (existing) {
+      revalidateContentPaths({
+        type: existing.type,
+        slug: existing.slug,
+        categorySlug: existing.category?.slug ?? null,
+        tagSlugs: existing.tags.map((entry) => entry.tag.slug),
+      });
+    }
 
     return { id: input.id };
   }),
@@ -448,34 +488,41 @@ export const contentRouter = createTRPCRouter({
         : {}),
     };
 
-    const items = await ctx.db.content.findMany({
-      where,
-      orderBy: [{ updatedAt: "desc" }],
-      take: input.limit,
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        tags: {
-          include: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
+    const [items, total] = await Promise.all([
+      ctx.db.content.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        skip: (input.page - 1) * input.pageSize,
+        take: input.pageSize,
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
             },
           },
-          take: 4,
+          tags: {
+            include: {
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
+            take: 4,
+          },
         },
-      },
-    });
+      }),
+      ctx.db.content.count({ where }),
+    ]);
 
     return {
       items,
+      total,
+      page: input.page,
+      pageSize: input.pageSize,
     };
   }),
 
@@ -489,6 +536,22 @@ export const contentRouter = createTRPCRouter({
       select: {
         id: true,
         publishStatus: true,
+        slug: true,
+        type: true,
+        category: {
+          select: {
+            slug: true,
+          },
+        },
+        tags: {
+          select: {
+            tag: {
+              select: {
+                slug: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -501,6 +564,13 @@ export const contentRouter = createTRPCRouter({
       metadata: {
         publishStatus: updated.publishStatus,
       },
+    });
+
+    revalidateContentPaths({
+      type: updated.type,
+      slug: updated.slug,
+      categorySlug: updated.category?.slug ?? null,
+      tagSlugs: updated.tags.map((entry) => entry.tag.slug),
     });
 
     return updated;
@@ -518,6 +588,22 @@ export const contentRouter = createTRPCRouter({
         select: {
           id: true,
           publishStatus: true,
+          slug: true,
+          type: true,
+          category: {
+            select: {
+              slug: true,
+            },
+          },
+          tags: {
+            select: {
+              tag: {
+                select: {
+                  slug: true,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -532,6 +618,13 @@ export const contentRouter = createTRPCRouter({
         },
       });
 
+      revalidateContentPaths({
+        type: updated.type,
+        slug: updated.slug,
+        categorySlug: updated.category?.slug ?? null,
+        tagSlugs: updated.tags.map((entry) => entry.tag.slug),
+      });
+
       return updated;
     }),
 
@@ -544,6 +637,22 @@ export const contentRouter = createTRPCRouter({
       select: {
         id: true,
         publishStatus: true,
+        slug: true,
+        type: true,
+        category: {
+          select: {
+            slug: true,
+          },
+        },
+        tags: {
+          select: {
+            tag: {
+              select: {
+                slug: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -556,6 +665,13 @@ export const contentRouter = createTRPCRouter({
       metadata: {
         publishStatus: updated.publishStatus,
       },
+    });
+
+    revalidateContentPaths({
+      type: updated.type,
+      slug: updated.slug,
+      categorySlug: updated.category?.slug ?? null,
+      tagSlugs: updated.tags.map((entry) => entry.tag.slug),
     });
 
     return updated;
@@ -582,6 +698,22 @@ export const contentRouter = createTRPCRouter({
       select: {
         id: true,
         isFeatured: true,
+        slug: true,
+        type: true,
+        category: {
+          select: {
+            slug: true,
+          },
+        },
+        tags: {
+          select: {
+            tag: {
+              select: {
+                slug: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -594,6 +726,13 @@ export const contentRouter = createTRPCRouter({
       metadata: {
         isFeatured: updated.isFeatured,
       },
+    });
+
+    revalidateContentPaths({
+      type: updated.type,
+      slug: updated.slug,
+      categorySlug: updated.category?.slug ?? null,
+      tagSlugs: updated.tags.map((entry) => entry.tag.slug),
     });
 
     return updated;
