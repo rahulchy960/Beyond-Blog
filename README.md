@@ -34,6 +34,13 @@ If you updated schema fields, also run:
 npm run db:migrate -- --name add_guest_interactions
 ```
 
+## Operational Docs
+
+- [Environment variables](./ENVIRONMENT.md)
+- [Deployment guide](./DEPLOYMENT.md)
+- [Security notes](./SECURITY.md)
+- [Launch checklist](./LAUNCH_CHECKLIST.md)
+
 ## Single Admin Setup
 
 Beyond Blog supports exactly one admin (`AdminUser.role = OWNER`, unique).
@@ -157,8 +164,12 @@ npm run db:generate
 - `npm run build`
 - `npm run start`
 - `npm run lint`
+- `npm run typecheck`
+- `npm run check`
 - `npm run db:generate`
 - `npm run db:migrate`
+- `npm run db:migrate:deploy`
+- `npm run db:migrate:status`
 - `npm run db:push`
 - `npm run db:seed`
 - `npm run db:studio`

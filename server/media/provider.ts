@@ -1,15 +1,16 @@
 import "server-only";
 import { UTApi } from "uploadthing/server";
+import { env } from "@/lib/env";
 
 let cachedUtapi: UTApi | null = null;
 
 function getUploadThingApi() {
-  if (!process.env.UPLOADTHING_TOKEN) {
+  if (!env.UPLOADTHING_TOKEN) {
     return null;
   }
 
   if (!cachedUtapi) {
-    cachedUtapi = new UTApi({ token: process.env.UPLOADTHING_TOKEN });
+    cachedUtapi = new UTApi({ token: env.UPLOADTHING_TOKEN });
   }
 
   return cachedUtapi;
