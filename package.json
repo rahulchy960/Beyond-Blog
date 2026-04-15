@@ -18,7 +18,8 @@
     "db:migrate:status": "prisma migrate status",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:seed:demo": "node scripts/seed-demo-content.cjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -39,7 +39,7 @@ export function PublicQuizCard({ quiz }: PublicQuizCardProps) {
             alt={quiz.coverImage?.altText ?? quiz.title}
             fill
             fallbackLabel="Quiz cover"
-            fallbackIcon={ListChecksIcon}
+            fallbackIconName="quiz"
           />
         </div>
 

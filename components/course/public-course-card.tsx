@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock3Icon, GraduationCapIcon, Layers3Icon, SparklesIcon } from "lucide-react";
+import { Clock3Icon, Layers3Icon, SparklesIcon } from "lucide-react";
 import { courseDifficultyLabels } from "@/lib/course/constants";
 import { Badge } from "@/components/ui/badge";
 import { GracefulMedia } from "@/components/ui/graceful-media";
@@ -40,7 +40,7 @@ export function PublicCourseCard({ course }: PublicCourseCardProps) {
             alt={course.coverImage?.altText ?? course.title}
             fill
             fallbackLabel="Course cover"
-            fallbackIcon={GraduationCapIcon}
+            fallbackIconName="course"
           />
         </div>
 

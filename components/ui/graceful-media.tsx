@@ -1,15 +1,17 @@
 "use client";
 
-import { ImageOffIcon, type LucideIcon } from "lucide-react";
+import { GraduationCapIcon, ImageOffIcon, ListChecksIcon } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+
+type GracefulFallbackIconName = "default" | "course" | "quiz";
 
 type GracefulMediaProps = {
   src?: string | null;
   alt: string;
   fallbackLabel?: string;
-  fallbackIcon?: LucideIcon;
+  fallbackIconName?: GracefulFallbackIconName;
   className?: string;
   imageClassName?: string;
   unoptimized?: boolean;
@@ -23,7 +25,7 @@ export function GracefulMedia({
   src,
   alt,
   fallbackLabel = "Media unavailable",
-  fallbackIcon: FallbackIcon = ImageOffIcon,
+  fallbackIconName = "default",
   className,
   imageClassName,
   unoptimized = false,
@@ -33,6 +35,12 @@ export function GracefulMedia({
   sizes,
 }: GracefulMediaProps) {
   const [failed, setFailed] = useState(false);
+  const fallbackIconMap = {
+    default: ImageOffIcon,
+    course: GraduationCapIcon,
+    quiz: ListChecksIcon,
+  } as const;
+  const FallbackIcon = fallbackIconMap[fallbackIconName];
   const validSrc = useMemo(
     () => (typeof src === "string" && src.trim().length > 0 ? src.trim() : null),
     [src],
