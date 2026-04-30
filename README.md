@@ -1,6 +1,6 @@
 # Beyond Blog
 
-Production-ready Next.js App Router foundation for a professor-led academic publishing platform.
+Production-ready Next.js App Router foundation for a academic publishing platform.
 
 ## Stack
 
