@@ -106,6 +106,13 @@
   --shadow-soft: 0 1px 0 0 color-mix(in srgb, var(--foreground) 8%, transparent), 0 8px 22px -14px color-mix(in srgb, var(--foreground) 22%, transparent);
   --shadow-panel: 0 1px 0 0 color-mix(in srgb, var(--foreground) 10%, transparent), 0 18px 40px -24px color-mix(in srgb, var(--foreground) 28%, transparent);
   --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--ring) 56%, transparent);
+
+  --z-sticky: 30;
+  --z-header: 40;
+  --z-overlay-backdrop: 70;
+  --z-overlay: 80;
+  --z-popover: 90;
+  --z-toast: 100;
 }
 
 .dark {

@@ -307,12 +307,13 @@ export function AdminProfileSettingsForm() {
       <MediaPickerDialog
         open={pickerOpen}
         onOpenChange={setPickerOpen}
+        selectedMediaId={values.profileImageId ?? null}
         types={[MEDIA_TYPE.IMAGE]}
         title="Select profile image"
         description="Choose an image from your media library to represent the admin profile."
         onSelect={(media) => {
           setPickedProfileMedia({ ...media, type: "IMAGE" });
-          form.setValue("profileImageId", media.id, { shouldValidate: true });
+          form.setValue("profileImageId", media.id, { shouldDirty: true, shouldValidate: true });
         }}
       />
     </div>

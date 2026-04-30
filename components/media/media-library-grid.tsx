@@ -27,9 +27,10 @@ type MediaLibraryItem = {
 type MediaLibraryGridProps = {
   items: MediaLibraryItem[];
   onSelect?: (mediaId: string) => void;
+  selectedMediaId?: string | null;
 };
 
-export function MediaLibraryGrid({ items, onSelect }: MediaLibraryGridProps) {
+export function MediaLibraryGrid({ items, onSelect, selectedMediaId }: MediaLibraryGridProps) {
   if (items.length === 0) {
     return (
       <EmptyState
@@ -43,7 +44,12 @@ export function MediaLibraryGrid({ items, onSelect }: MediaLibraryGridProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       {items.map((item) => (
-        <MediaCard key={item.id} media={item} onSelect={onSelect} />
+        <MediaCard
+          key={item.id}
+          media={item}
+          onSelect={onSelect}
+          isSelected={selectedMediaId === item.id}
+        />
       ))}
     </div>
   );

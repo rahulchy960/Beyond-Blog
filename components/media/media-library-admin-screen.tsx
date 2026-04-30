@@ -56,6 +56,7 @@ export function MediaLibraryAdminScreen() {
 
   const refreshMedia = async () => {
     await queryClient.invalidateQueries({ queryKey: trpc.media.pathKey() });
+    await queryClient.refetchQueries({ queryKey: trpc.media.pathKey(), type: "active" });
   };
 
   const createExternalVideoMutation = useMutation(

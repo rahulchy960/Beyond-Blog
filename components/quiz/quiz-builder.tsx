@@ -1015,11 +1015,12 @@ export function QuizBuilder({ mode, quizId }: QuizBuilderProps) {
       <MediaPickerDialog
         open={coverPickerOpen}
         onOpenChange={setCoverPickerOpen}
+        selectedMediaId={watchedCoverImageId}
         types={[MEDIA_TYPE.IMAGE]}
         title="Select quiz cover image"
         onSelect={(media) => {
           setSelectedCoverMedia(media);
-          form.setValue("coverImageId", media.id, { shouldValidate: true });
+          form.setValue("coverImageId", media.id, { shouldDirty: true, shouldValidate: true });
         }}
       />
 

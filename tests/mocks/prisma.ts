@@ -64,9 +64,11 @@ export function createPrismaMock() {
       delete: vi.fn(),
     },
     mediaAsset: {
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
+      upsert: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
     },

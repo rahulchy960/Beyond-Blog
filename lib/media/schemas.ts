@@ -45,6 +45,28 @@ export const createExternalVideoInputSchema = z.object({
   durationSeconds: z.number().int().nonnegative().optional().nullable(),
 });
 
+export const registerUploadedAssetInputSchema = z.object({
+  type: z.enum(MEDIA_TYPES),
+  title: z.string().trim().max(180).optional().nullable(),
+  storageProvider: mediaProviderSchema.default("uploadthing"),
+  storageKey: z.string().trim().min(1).max(512),
+  url: z.string().trim().url(),
+  thumbnailUrl: z.string().trim().url().optional().nullable(),
+  mimeType: z.string().trim().min(1).max(255),
+  sizeBytes: z.number().int().nonnegative(),
+  width: z.number().int().positive().optional().nullable(),
+  height: z.number().int().positive().optional().nullable(),
+  originalFilename: z.string().trim().max(255).optional().nullable(),
+});
+
+export const registerUploadInputSchema = z.object({
+  url: z.string().trim().url(),
+  key: z.string().trim().min(1).max(512).optional(),
+  name: z.string().trim().min(1).max(255),
+  size: z.number().int().positive().optional(),
+  mimeType: z.string().trim().min(1).max(255).optional(),
+});
+
 export const listMediaForPickerInputSchema = z.object({
   query: z.string().trim().max(120).optional(),
   limit: z.number().int().min(1).max(60).default(30),

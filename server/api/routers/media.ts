@@ -8,10 +8,13 @@ import {
   listMediaForPickerInputSchema,
   listMediaInputSchema,
   normalizeOptionalText,
+  registerUploadInputSchema,
+  registerUploadedAssetInputSchema,
   updateMediaMetadataInputSchema,
 } from "@/lib/media/schemas";
 import { createTRPCRouter, adminProcedure } from "@/server/api/trpc";
 import { deleteProviderAsset } from "@/server/media/provider";
+import { registerUploadedMediaAsset } from "@/server/media/register-uploaded-asset";
 import { createAuditLog } from "@/server/audit/log";
 import { revalidatePublicIndexes } from "@/lib/cache/revalidate";
 
@@ -273,6 +276,72 @@ export const mediaRouter = createTRPCRouter({
       revalidatePublicIndexes();
 
       return created;
+    }),
+
+  registerUploadedAsset: adminProcedure
+    .input(registerUploadedAssetInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const media = await registerUploadedMediaAsset({
+        db: ctx.db,
+        input: {
+          ...input,
+          uploadedByAdminId: ctx.adminUser.id,
+        },
+      });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "media.register_uploadthing_asset",
+        entityType: "MEDIA_ASSET",
+        entityId: media.id,
+        metadata: {
+          storageProvider: media.storageProvider,
+          storageKey: media.storageKey,
+          mimeType: media.mimeType,
+        },
+      });
+
+      revalidatePublicIndexes();
+
+      return media;
+    }),
+
+  registerUpload: adminProcedure
+    .input(registerUploadInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const media = await registerUploadedMediaAsset({
+        db: ctx.db,
+        input: {
+          type: input.mimeType?.startsWith("image/") ? MEDIA_TYPE.IMAGE : MEDIA_TYPE.FILE,
+          title: input.name,
+          storageProvider: "uploadthing",
+          storageKey: input.key ?? input.url,
+          url: input.url,
+          thumbnailUrl: input.mimeType?.startsWith("image/") ? input.url : null,
+          mimeType: input.mimeType ?? "application/octet-stream",
+          sizeBytes: input.size ?? 0,
+          originalFilename: input.name,
+          uploadedByAdminId: ctx.adminUser.id,
+        },
+      });
+
+      await createAuditLog({
+        db: ctx.db,
+        adminUserId: ctx.adminUser.id,
+        action: "media.register_upload",
+        entityType: "MEDIA_ASSET",
+        entityId: media.id,
+        metadata: {
+          storageProvider: media.storageProvider,
+          storageKey: media.storageKey,
+          mimeType: media.mimeType,
+        },
+      });
+
+      revalidatePublicIndexes();
+
+      return media;
     }),
 });
 

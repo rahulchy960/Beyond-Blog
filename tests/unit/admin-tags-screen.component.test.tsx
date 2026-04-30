@@ -5,9 +5,15 @@ import { renderWithProviders } from "@/tests/utils";
 
 const mocked = vi.hoisted(() => {
   const invalidateQueries = vi.fn(async () => undefined);
-  const createMutateAsync = vi.fn(async (_input: unknown) => undefined);
-  const updateMutateAsync = vi.fn(async (_input: unknown) => undefined);
-  const deleteMutate = vi.fn((_input: unknown) => undefined);
+  const createMutateAsync = vi.fn(async (input: unknown) => {
+    void input;
+  });
+  const updateMutateAsync = vi.fn(async (input: unknown) => {
+    void input;
+  });
+  const deleteMutate = vi.fn((input: unknown) => {
+    void input;
+  });
 
   return {
     invalidateQueries,

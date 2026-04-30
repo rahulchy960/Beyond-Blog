@@ -4,8 +4,10 @@ import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 import { MEDIA_TYPE } from "@/lib/content/enums";
 import { findAdminByClerkUserId } from "@/lib/auth/admin-repository";
+import { getUploadThingFileUrl } from "@/lib/uploadthing/file-metadata";
 import { createAuditLog } from "@/server/audit/log";
 import { db } from "@/server/db";
+import { registerUploadedMediaAsset } from "@/server/media/register-uploaded-asset";
 
 const f = createUploadthing();
 
@@ -21,14 +23,6 @@ const ALLOWED_FILE_MIME_TYPES = new Set([
   "application/vnd.ms-powerpoint",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ]);
-
-function resolveFileUrl(file: {
-  ufsUrl?: string | null;
-  url?: string | null;
-  appUrl?: string | null;
-}) {
-  return file.ufsUrl ?? file.url ?? file.appUrl ?? null;
-}
 
 async function requireUploadAdmin() {
   const { userId } = await auth();
@@ -56,31 +50,26 @@ export const beyondBlogFileRouter = {
       return { adminUserId: adminUser.id };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      const fileUrl = resolveFileUrl(file);
-      if (!fileUrl) {
+      let fileUrl: string;
+      try {
+        fileUrl = getUploadThingFileUrl(file);
+      } catch {
         throw new UploadThingError("Upload did not return a valid file URL.");
       }
 
-      const created = await db.mediaAsset.create({
-        data: {
+      const created = await registerUploadedMediaAsset({
+        db,
+        input: {
           type: MEDIA_TYPE.IMAGE,
           title: file.name,
           storageProvider: "uploadthing",
           storageKey: file.key,
           url: fileUrl,
+          thumbnailUrl: fileUrl,
           mimeType: file.type || "image/*",
           sizeBytes: file.size,
           originalFilename: file.name,
           uploadedByAdminId: metadata.adminUserId,
-        },
-        select: {
-          id: true,
-          type: true,
-          url: true,
-          title: true,
-          originalFilename: true,
-          mimeType: true,
-          sizeBytes: true,
         },
       });
       await createAuditLog({
@@ -98,7 +87,18 @@ export const beyondBlogFileRouter = {
 
       return {
         mediaId: created.id,
-        media: created,
+        media: {
+          id: created.id,
+          type: created.type,
+          url: created.url,
+          thumbnailUrl: created.thumbnailUrl,
+          storageKey: created.storageKey,
+          providerAssetId: created.providerAssetId,
+          title: created.title,
+          originalFilename: created.originalFilename,
+          mimeType: created.mimeType,
+          sizeBytes: created.sizeBytes,
+        },
       };
     }),
 
@@ -113,8 +113,10 @@ export const beyondBlogFileRouter = {
       return { adminUserId: adminUser.id };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      const fileUrl = resolveFileUrl(file);
-      if (!fileUrl) {
+      let fileUrl: string;
+      try {
+        fileUrl = getUploadThingFileUrl(file);
+      } catch {
         throw new UploadThingError("Upload did not return a valid file URL.");
       }
 
@@ -122,8 +124,9 @@ export const beyondBlogFileRouter = {
         throw new UploadThingError("Unsupported file type.");
       }
 
-      const created = await db.mediaAsset.create({
-        data: {
+      const created = await registerUploadedMediaAsset({
+        db,
+        input: {
           type: MEDIA_TYPE.FILE,
           title: file.name,
           storageProvider: "uploadthing",
@@ -133,15 +136,6 @@ export const beyondBlogFileRouter = {
           sizeBytes: file.size,
           originalFilename: file.name,
           uploadedByAdminId: metadata.adminUserId,
-        },
-        select: {
-          id: true,
-          type: true,
-          url: true,
-          title: true,
-          originalFilename: true,
-          mimeType: true,
-          sizeBytes: true,
         },
       });
       await createAuditLog({
@@ -159,7 +153,18 @@ export const beyondBlogFileRouter = {
 
       return {
         mediaId: created.id,
-        media: created,
+        media: {
+          id: created.id,
+          type: created.type,
+          url: created.url,
+          thumbnailUrl: created.thumbnailUrl,
+          storageKey: created.storageKey,
+          providerAssetId: created.providerAssetId,
+          title: created.title,
+          originalFilename: created.originalFilename,
+          mimeType: created.mimeType,
+          sizeBytes: created.sizeBytes,
+        },
       };
     }),
 } satisfies FileRouter;

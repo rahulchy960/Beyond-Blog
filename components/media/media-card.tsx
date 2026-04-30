@@ -3,12 +3,13 @@
 import { format } from "date-fns";
 import Image from "next/image";
 import { motion } from "motion/react";
-import { FileIcon, FilmIcon, ImageIcon } from "lucide-react";
+import { CheckIcon, FileIcon, FilmIcon, ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { MEDIA_TYPE, type MediaType } from "@/lib/content/enums";
 import { formatFileSize, getMediaTypeLabel } from "@/lib/media/utils";
 import { MediaActionsMenu } from "@/components/media/media-actions-menu";
+import { cn } from "@/lib/utils";
 
 type MediaCardProps = {
   media: {
@@ -32,6 +33,7 @@ type MediaCardProps = {
     providerAssetId: string | null;
   };
   onSelect?: (mediaId: string) => void;
+  isSelected?: boolean;
 };
 
 function renderMediaTypeIcon(type: MediaType) {
@@ -45,14 +47,26 @@ function renderMediaTypeIcon(type: MediaType) {
   }
 }
 
-export function MediaCard({ media, onSelect }: MediaCardProps) {
+export function MediaCard({ media, onSelect, isSelected = false }: MediaCardProps) {
   const typeLabel = getMediaTypeLabel(media.type);
   const imageUrl = media.thumbnailUrl ?? media.url;
   const createdAt = new Date(media.createdAt);
 
   return (
     <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.18, ease: "easeOut" }}>
-      <Card className="surface-panel overflow-hidden">
+      <Card
+        className={cn(
+          "surface-panel relative overflow-hidden transition-colors",
+          onSelect ? "cursor-pointer hover:border-primary/60" : "",
+          isSelected ? "border-primary/70 ring-2 ring-primary/25" : "",
+        )}
+        onClick={() => onSelect?.(media.id)}
+      >
+        {isSelected ? (
+          <span className="absolute top-3 right-3 z-10 inline-flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+            <CheckIcon className="size-4" />
+          </span>
+        ) : null}
         <div className="relative h-44 border-b border-border/70 bg-muted/50">
           {media.type === MEDIA_TYPE.IMAGE ? (
             <Image
@@ -76,7 +90,9 @@ export function MediaCard({ media, onSelect }: MediaCardProps) {
               </p>
               <p className="truncate text-xs text-muted-foreground">{media.originalFilename ?? media.mimeType}</p>
             </div>
-            <MediaActionsMenu media={media} onSelect={onSelect} />
+            <div onClick={(event) => event.stopPropagation()}>
+              <MediaActionsMenu media={media} onSelect={onSelect} />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-2 pt-3">

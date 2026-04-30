@@ -69,6 +69,49 @@ describe("tRPC public integration", () => {
     expect(result).toHaveLength(1);
   });
 
+  it("returns cover image data for public content detail", async () => {
+    const db = createPrismaMock();
+    db.content.findFirst.mockResolvedValue({
+      id: "content_1",
+      title: "Published",
+      slug: "published",
+      summary: null,
+      bodyJson: { type: "doc", content: [] },
+      coverImage: {
+        url: "https://example.ufs.sh/f/cover",
+        altText: "Cover image",
+      },
+      category: null,
+      tags: [],
+    });
+
+    const caller = contentRouter.createCaller({
+      db: toDb(db),
+      userId: null,
+      sessionId: null,
+      isAuthenticated: false,
+    });
+
+    const result = await caller.getPublishedBySlug({
+      type: CONTENT_TYPE.ARTICLE,
+      slug: "published",
+    });
+
+    expect(result.coverImage?.url).toBe("https://example.ufs.sh/f/cover");
+    expect(db.content.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          coverImage: expect.objectContaining({
+            select: expect.objectContaining({
+              url: true,
+              altText: true,
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
   it("fetches published course structure", async () => {
     const db = createPrismaMock();
     db.course.findFirst.mockResolvedValue({

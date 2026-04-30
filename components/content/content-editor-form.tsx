@@ -18,7 +18,7 @@ import { TiptapEditor } from "@/components/content/tiptap-editor";
 import { MediaPickerDialog } from "@/components/media/media-picker-dialog";
 import { MediaPreview } from "@/components/media/media-preview";
 import { useTRPC } from "@/hooks/use-trpc";
-import { PUBLISH_STATUS, type ContentType, type PublishStatus } from "@/lib/content/enums";
+import { MEDIA_TYPE, PUBLISH_STATUS, type ContentType, type PublishStatus } from "@/lib/content/enums";
 import { contentTypeMeta, publishStatusOptions } from "@/lib/content/constants";
 import { emptyRichTextDocument } from "@/lib/content/rich-text";
 import { createContentInputSchema } from "@/lib/content/schemas";
@@ -473,7 +473,10 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
                       size="sm"
                       onClick={() => {
                         setPickedCoverMedia(null);
-                        form.setValue("coverImageAssetId", null, { shouldValidate: true });
+                        form.setValue("coverImageAssetId", null, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
                       }}
                     >
                       <XIcon className="size-4" />
@@ -502,12 +505,17 @@ export function ContentEditorForm({ mode, type, contentId }: ContentEditorFormPr
       <MediaPickerDialog
         open={isMediaPickerOpen}
         onOpenChange={setIsMediaPickerOpen}
+        selectedMediaId={coverImageAssetIdValue}
+        types={[MEDIA_TYPE.IMAGE]}
         onSelect={(media) => {
           setPickedCoverMedia({
             ...media,
             type: "IMAGE",
           });
-          form.setValue("coverImageAssetId", media.id, { shouldValidate: true });
+          form.setValue("coverImageAssetId", media.id, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
         }}
       />
     </div>

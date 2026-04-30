@@ -786,7 +786,7 @@ export function CourseEditorForm({ mode, courseId }: CourseEditorFormProps) {
               <MediaPreview media={selectedCover} compact />
               <div className="flex gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => setCoverPickerOpen(true)}><ImageIcon className="size-4" />Select Media</Button>
-                {selectedCover ? <Button type="button" variant="ghost" size="sm" onClick={() => { setCoverMedia(null); form.setValue("coverImageId", null, { shouldValidate: true }); }}>Remove</Button> : null}
+                {selectedCover ? <Button type="button" variant="ghost" size="sm" onClick={() => { setCoverMedia(null); form.setValue("coverImageId", null, { shouldDirty: true, shouldValidate: true }); }}>Remove</Button> : null}
               </div>
             </CardContent>
           </Card>
@@ -875,18 +875,20 @@ export function CourseEditorForm({ mode, courseId }: CourseEditorFormProps) {
       <MediaPickerDialog
         open={coverPickerOpen}
         onOpenChange={setCoverPickerOpen}
+        selectedMediaId={coverImageIdValue ?? null}
         types={[MEDIA_TYPE.IMAGE]}
         title="Select course cover image"
         description="Pick a reusable image from the media library for the course hero."
         onSelect={(media) => {
           setCoverMedia(media);
-          form.setValue("coverImageId", media.id, { shouldValidate: true });
+          form.setValue("coverImageId", media.id, { shouldDirty: true, shouldValidate: true });
         }}
       />
 
       <MediaPickerDialog
         open={lessonMediaPickerOpen}
         onOpenChange={setLessonMediaPickerOpen}
+        selectedMediaId={lessonDraft.mediaAssetId}
         types={allowedMediaTypesForLesson(lessonDraft.itemType)}
         title="Select lesson media"
         description="Attach a media asset to this lesson."
