@@ -1,8 +1,13 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
+const isUploadThingRoute = createRouteMatcher(["/api/uploadthing(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
+  if (isUploadThingRoute(req)) {
+    return;
+  }
+
   if (isAdminRoute(req)) {
     await auth.protect();
   }

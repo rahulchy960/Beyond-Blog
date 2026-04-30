@@ -1,0 +1,83 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: "Run Playwright E2E job"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  unit-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vitest
+        run: npm run test
+
+      - name: Run coverage
+        run: npm run test:coverage
+
+  e2e:
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_e2e) || vars.RUN_E2E == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: test
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY || 'pk_test_ci' }}
+      CLERK_SECRET_KEY: ${{ secrets.E2E_CLERK_SECRET_KEY || 'sk_test_ci' }}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-in
+      DATABASE_URL: ${{ secrets.E2E_DATABASE_URL || 'postgresql://test:test@localhost:5432/beyond_blog_test' }}
+      DIRECT_URL: ${{ secrets.E2E_DIRECT_URL || 'postgresql://test:test@localhost:5432/beyond_blog_test' }}
+      INTERACTION_TOKEN_SECRET: test_secret
+      UPLOADTHING_TOKEN: ${{ secrets.E2E_UPLOADTHING_TOKEN || 'test_uploadthing_token' }}
+      PLAYWRIGHT_ADMIN_STORAGE_STATE: ${{ secrets.E2E_ADMIN_STORAGE_STATE || '' }}
+      E2E_ARTICLE_SLUG: ${{ vars.E2E_ARTICLE_SLUG || '' }}
+      E2E_QUIZ_SLUG: ${{ vars.E2E_QUIZ_SLUG || '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore

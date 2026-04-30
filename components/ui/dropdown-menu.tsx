@@ -38,6 +38,12 @@ function DropdownMenuContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        positionMethod="fixed"
+        collisionAvoidance={{
+          side: "flip",
+          align: "shift",
+        }}
+        collisionPadding={8}
       >
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
