@@ -1,5 +1,8 @@
 name: Tests
 
+env:
+  DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
 on:
   pull_request:
   push:
