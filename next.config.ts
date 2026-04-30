@@ -49,7 +49,7 @@ function getAdditionalImageHosts() {
     .filter((value, index, list) => list.indexOf(value) === index);
 }
 
-const defaultImageHosts = ["utfs.io", "**.ufs.sh", "img.clerk.com", "images.clerk.dev"];
+const defaultImageHosts = ["utfs.io", "**.ufs.sh", "img.clerk.com", "images.clerk.dev", "images.unsplash.com"];
 const configuredImageHosts = getAdditionalImageHosts();
 
 const nextConfig: NextConfig = {

@@ -72,7 +72,11 @@ export function MediaPickerDialog({
 
   const pickerItems = useMemo(() => mediaQuery.data ?? [], [mediaQuery.data]);
   const activeSelectedMediaId = localSelectedMediaId ?? selectedMediaId ?? null;
-  const selectedMedia = useMemo<MediaPickerAsset | null>(() => {
+
+  const inListSelectedMedia = useMemo<MediaPickerAsset | null>(() => {
+    if (!activeSelectedMediaId) {
+      return null;
+    }
     const existing = pickerItems.find((item) => item.id === activeSelectedMediaId);
     if (!existing) {
       return null;
@@ -90,6 +94,43 @@ export function MediaPickerDialog({
       sizeBytes: existing.sizeBytes,
     };
   }, [activeSelectedMediaId, pickerItems]);
+
+  // Fallback fetch when the selected media is not in the current picker page
+  // (e.g. older cover image, or a search query that filters it out). Without
+  // this, the side preview would falsely show "No media selected" even though
+  // the parent form holds a valid coverImageAssetId.
+  const fallbackSelectedMediaQuery = useQuery(
+    trpc.media.getById.queryOptions(
+      { id: activeSelectedMediaId ?? "" },
+      {
+        enabled: open && Boolean(activeSelectedMediaId) && !inListSelectedMedia,
+        staleTime: 60_000,
+      },
+    ),
+  );
+
+  const selectedMedia = useMemo<MediaPickerAsset | null>(() => {
+    if (inListSelectedMedia) {
+      return inListSelectedMedia;
+    }
+
+    const fallback = fallbackSelectedMediaQuery.data;
+    if (!fallback || fallback.id !== activeSelectedMediaId) {
+      return null;
+    }
+
+    return {
+      id: fallback.id,
+      type: fallback.type,
+      url: fallback.url,
+      thumbnailUrl: fallback.thumbnailUrl,
+      altText: fallback.altText,
+      title: fallback.title,
+      originalFilename: fallback.originalFilename,
+      mimeType: fallback.mimeType,
+      sizeBytes: fallback.sizeBytes,
+    };
+  }, [inListSelectedMedia, fallbackSelectedMediaQuery.data, activeSelectedMediaId]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -111,13 +152,13 @@ export function MediaPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-[min(1100px,calc(100vw-2rem))] max-w-none overflow-hidden p-0">
-        <DialogHeader className="border-b border-border/70 px-5 py-4 sm:px-6">
+      <DialogContent className="flex w-[min(1100px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="shrink-0 border-b border-border/70 px-5 py-4 sm:px-6">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid min-h-0 max-h-[calc(100dvh-9rem)] gap-0 md:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 md:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="min-h-0 space-y-3 overflow-y-auto p-5 sm:p-6">
             <div className="relative">
               <SearchIcon className="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
