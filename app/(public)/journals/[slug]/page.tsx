@@ -71,10 +71,7 @@ export default async function JournalDetailPage({ params }: JournalDetailPagePro
     notFound();
   }
 
-  const [seo, identity] = await Promise.all([
-    getSeoSettings(),
-    caller.profile.getPublicIdentity(),
-  ]);
+  const seo = await getSeoSettings();
 
   const articleSchema = buildArticleSchema({
     seo,
@@ -84,7 +81,7 @@ export default async function JournalDetailPage({ params }: JournalDetailPagePro
     publishedAt: content.publishedAt,
     updatedAt: content.updatedAt,
     imageUrl: content.coverImage?.url ?? null,
-    authorName: identity.name,
+    authorName: content.author?.displayName,
     kind: "BlogPosting",
   });
   const breadcrumbSchema = buildBreadcrumbSchema(
@@ -109,4 +106,3 @@ export default async function JournalDetailPage({ params }: JournalDetailPagePro
     </SiteContainer>
   );
 }
-

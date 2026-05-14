@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PlusIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdminContext } from "@/lib/auth/admin";
+import { db } from "@/server/db";
 import { AdminAvatarSettings } from "@/components/admin/admin-avatar-settings";
 import { AdminInteractionInsights } from "@/components/admin/admin-interaction-insights";
 import { AdminStatsGrid } from "@/components/admin/admin-stats-grid";
@@ -10,14 +11,17 @@ import { buttonVariants } from "@/lib/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function AdminDashboardPage() {
-  const admin = await requireAdmin();
-  const adminLabel = `${admin.firstName ?? ""} ${admin.lastName ?? ""}`.trim() || admin.email;
+  const { adminProfile } = await requireAdminContext();
+  const [authoredContentCount, authoredCoursesCount] = await Promise.all([
+    db.content.count({ where: { authorId: adminProfile.id } }),
+    db.course.count({ where: { authorId: adminProfile.id } }),
+  ]);
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="Dashboard"
-        description="Single-admin command center for publishing operations, moderation, media, and courses."
+        description={`Signed in as ${adminProfile.displayName}. ${authoredContentCount} authored entries and ${authoredCoursesCount} authored courses.`}
         actions={
           <>
             <Link href="/" className={buttonVariants({ variant: "outline", size: "sm" })}>
@@ -40,8 +44,8 @@ export default async function AdminDashboardPage() {
         </AnimatedPageWrapper>
 
         <AnimatedPageWrapper delay={0.08}>
-          <div className="grid gap-5">
-            <AdminAvatarSettings adminLabel={adminLabel} />
+            <div className="grid gap-5">
+            <AdminAvatarSettings adminLabel={adminProfile.displayName} />
             <Card className="surface-panel h-full">
               <CardHeader>
                 <CardTitle>Quick Actions</CardTitle>
@@ -82,4 +86,3 @@ export default async function AdminDashboardPage() {
     </div>
   );
 }
-

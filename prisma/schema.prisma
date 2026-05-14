@@ -80,12 +80,11 @@ model AdminUser {
   imageUrl    String?
   isActive    Boolean   @default(true)
   lastLoginAt DateTime?
-  role        AdminRole @default(OWNER) @unique
+  role        AdminRole @default(OWNER)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   profile             AdminProfile?
-  contents            Content[]    @relation("AdminAuthoredContent")
   uploadedMediaAssets MediaAsset[] @relation("AdminUploadedMedia")
   moderatedComments   Comment[]    @relation("CommentModeratedByAdmin")
   quizzes             Quiz[]       @relation("QuizCreatedByAdmin")
@@ -109,11 +108,11 @@ model Content {
   publishedAt       DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
-  authorId          String
+  authorId          String?
   categoryId        String?
   coverImageAssetId String?
 
-  author      AdminUser   @relation("AdminAuthoredContent", fields: [authorId], references: [id], onDelete: Restrict)
+  author      AdminProfile? @relation(fields: [authorId], references: [id], onDelete: SetNull)
   category    Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   coverImage  MediaAsset? @relation("ContentCoverImage", fields: [coverImageAssetId], references: [id], onDelete: SetNull)
   tags        ContentTag[]
@@ -281,6 +280,7 @@ model Quiz {
   seoTitle                 String?
   seoDescription           String?    @db.Text
   createdByAdminId         String
+  authorId                 String?
   publishedAt              DateTime?
   createdAt                DateTime   @default(now())
   updatedAt                DateTime   @updatedAt
@@ -290,6 +290,7 @@ model Quiz {
   courseLesson   CourseLesson?  @relation(fields: [courseLessonId], references: [id], onDelete: SetNull)
   coverImage     MediaAsset?    @relation("QuizCoverImage", fields: [coverImageId], references: [id], onDelete: SetNull)
   createdByAdmin AdminUser      @relation("QuizCreatedByAdmin", fields: [createdByAdminId], references: [id], onDelete: Restrict)
+  author         AdminProfile?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
   questions      QuizQuestion[]
   attempts       QuizAttempt[]
 
@@ -299,6 +300,7 @@ model Quiz {
   @@index([courseId])
   @@index([courseLessonId])
   @@index([createdByAdminId, createdAt])
+  @@index([authorId, createdAt])
 }
 
 model QuizQuestion {
@@ -390,8 +392,10 @@ model Course {
   createdAt                DateTime              @default(now())
   updatedAt                DateTime              @updatedAt
   createdByAdminId         String
+  authorId                 String?
 
   createdByAdmin AdminUser      @relation("CourseCreatedByAdmin", fields: [createdByAdminId], references: [id], onDelete: Restrict)
+  author         AdminProfile?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
   coverImage     MediaAsset?    @relation("CourseCoverImage", fields: [coverImageId], references: [id], onDelete: SetNull)
   sections       CourseSection[]
   lessons        CourseLesson[]
@@ -402,6 +406,7 @@ model Course {
   @@index([status, publishedAt])
   @@index([isFeatured, status])
   @@index([createdByAdminId, createdAt])
+  @@index([authorId, createdAt])
 }
 
 model CourseSection {
@@ -452,30 +457,33 @@ model CourseLesson {
 }
 
 model AdminProfile {
-  id            String   @id @default(cuid())
-  singletonKey  String   @unique @default("ADMIN_PROFILE")
-  adminUserId   String   @unique
-  fullName      String?
-  designation   String?
-  bio           String?  @db.Text
-  address       String?  @db.Text
-  email         String?
-  phone         String?
-  jobs          String?  @db.Text
-  education     String?  @db.Text
+  id             String   @id @default(cuid())
+  clerkUserId    String   @unique
+  adminUserId    String   @unique
+  displayName    String
+  slug           String   @unique
+  designation    String?
+  bio            String?  @db.Text
+  email          String?
+  address        String?  @db.Text
+  phone          String?
+  education      String?  @db.Text
+  experience     String?  @db.Text
   profileImageId String?
-  linkedinUrl   String?
-  githubUrl     String?
-  twitterUrl    String?
-  websiteUrl    String?
-  copyrightText String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  socials        Json?
+  copyrightText  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  adminUser    AdminUser  @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
-  profileImage MediaAsset? @relation("AdminProfileImage", fields: [profileImageId], references: [id], onDelete: SetNull)
+  adminUser              AdminUser     @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  profileImage           MediaAsset?   @relation("AdminProfileImage", fields: [profileImageId], references: [id], onDelete: SetNull)
+  contents               Content[]
+  courses                Course[]
+  quizzes                Quiz[]
+  featuredInSiteSettings SiteSetting[] @relation("FeaturedFooterProfile")
 
   @@index([updatedAt])
+  @@index([slug])
 }
 
 model SiteSetting {
@@ -491,8 +499,11 @@ model SiteSetting {
   defaultQuizAllowMultipleAttempts  Boolean  @default(true)
   defaultQuizTimeLimitSeconds       Int?
   defaultQuizPassingScore           Int?
+  featuredFooterProfileId           String?
   createdAt                         DateTime @default(now())
   updatedAt                         DateTime @updatedAt
+
+  featuredFooterProfile AdminProfile? @relation("FeaturedFooterProfile", fields: [featuredFooterProfileId], references: [id], onDelete: SetNull)
 }
 
 model AuditLog {
@@ -510,4 +521,3 @@ model AuditLog {
   @@index([adminUserId, createdAt])
   @@index([action, createdAt])
 }
-

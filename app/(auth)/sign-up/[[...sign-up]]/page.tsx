@@ -6,13 +6,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return buildPageMetadata({
     path: "/sign-up",
     title: "Sign-Up Disabled",
-    description: "Beyond Blog uses a single-admin sign-in flow.",
+    description: "Beyond Blog uses a controlled admin sign-in flow.",
     noIndex: true,
     ogType: "website",
   });
 }
 
 export default function SignUpPage() {
-  // Beyond Blog is single-admin only; sign-up flow is intentionally disabled in-app.
+  // Beyond Blog is admin allow-list only; sign-up flow is intentionally disabled in-app.
   redirect("/sign-in");
 }

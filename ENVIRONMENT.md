@@ -23,7 +23,8 @@ Beyond Blog validates runtime configuration in [`lib/env.ts`](./lib/env.ts) usin
 | `CLERK_SECRET_KEY` | Yes | Must match environment (`sk_test_` in dev, `sk_live_` in prod). |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Yes | Keep set to `/sign-in`. |
 | `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Yes | Keep set to `/sign-in` (sign-up disabled). |
-| `SINGLE_ADMIN_CLERK_USER_ID` | Yes (prod) | Clerk user ID for the one owner admin. |
+| `ALLOWED_ADMIN_IDS` | Yes (prod) | Comma-separated Clerk user IDs allowed into the controlled admin system. |
+| `SINGLE_ADMIN_CLERK_USER_ID` | Backward-compatible fallback | Legacy single-admin Clerk user ID used only when `ALLOWED_ADMIN_IDS` is unset. |
 | `SINGLE_ADMIN_EMAIL` | Yes (prod) | Email for owner admin seed/upsert. |
 | `UPLOADTHING_TOKEN` | Yes (prod) | UploadThing token for media upload and cleanup. |
 

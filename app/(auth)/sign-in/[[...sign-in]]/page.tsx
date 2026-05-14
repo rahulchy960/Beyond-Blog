@@ -28,7 +28,7 @@ export default function SignInPage() {
               </span>
               <CardTitle className="text-2xl">Admin Sign-In</CardTitle>
               <CardDescription className="max-w-lg text-sm leading-7">
-                Beyond Blog uses a strict single-admin authentication model. Public readers do not need accounts and
+                Beyond Blog uses a controlled admin authentication model. Public readers do not need accounts and
                 browse published content openly.
               </CardDescription>
             </CardHeader>

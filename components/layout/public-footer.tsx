@@ -26,7 +26,7 @@ function InstagramMark() {
 export async function PublicFooter() {
   const year = new Date().getFullYear();
   const caller = await getPublicServerCaller();
-  const profile = await caller.profile.getPublicFooterProfile();
+  const profile = await caller.profile.getPublicFooterProfile().catch(() => null);
 
   const copyrightLabel =
     profile?.copyrightText && hasValue(profile.copyrightText)
@@ -59,12 +59,14 @@ export async function PublicFooter() {
         {profile ? (
           <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
             <div className="space-y-3">
-              {hasValue(profile.fullName) ? (
-                <p className="text-base font-semibold text-foreground">{profile.fullName}</p>
+              {hasValue(profile.displayName) ? (
+                <Link href={`/authors/${profile.slug}`} className="text-base font-semibold text-foreground hover:text-primary">
+                  {profile.displayName}
+                </Link>
               ) : null}
               {hasValue(profile.designation) ? <p>{profile.designation}</p> : null}
               {hasValue(profile.bio) ? <p className="max-w-3xl leading-7">{profile.bio}</p> : null}
-              {hasValue(profile.jobs) ? <p className="leading-7">{profile.jobs}</p> : null}
+              {hasValue(profile.experience) ? <p className="leading-7">{profile.experience}</p> : null}
               {hasValue(profile.education) ? <p className="leading-7">{profile.education}</p> : null}
             </div>
 
@@ -109,6 +111,9 @@ export async function PublicFooter() {
               </Link>
               <Link href="/courses" className="hover:text-foreground">
                 Courses
+              </Link>
+              <Link href="/authors" className="hover:text-foreground">
+                Authors
               </Link>
               <Link href="/quizzes" className="hover:text-foreground">
                 Quizzes

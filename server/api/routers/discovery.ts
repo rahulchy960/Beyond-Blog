@@ -31,6 +31,21 @@ import { createAuditLog } from "@/server/audit/log";
 import { revalidatePublicIndexes, revalidateTaxonomyPaths } from "@/lib/cache/revalidate";
 
 const contentListInclude = {
+  author: {
+    select: {
+      id: true,
+      displayName: true,
+      slug: true,
+      profileImage: {
+        select: {
+          id: true,
+          url: true,
+          thumbnailUrl: true,
+          altText: true,
+        },
+      },
+    },
+  },
   category: {
     select: {
       id: true,
@@ -65,6 +80,20 @@ const courseCoverSelect = {
   url: true,
   thumbnailUrl: true,
   altText: true,
+} as const;
+
+const authorSelect = {
+  id: true,
+  displayName: true,
+  slug: true,
+  profileImage: {
+    select: {
+      id: true,
+      url: true,
+      thumbnailUrl: true,
+      altText: true,
+    },
+  },
 } as const;
 
 const quizDiscoverySelect = {
@@ -393,6 +422,34 @@ function getTopCategoryFacet(
     .slice(0, limit);
 }
 
+function getTopAuthorFacet(
+  items: Array<{
+    author: { id: string; displayName: string; slug: string } | null;
+  }>,
+  limit = 12,
+) {
+  const map = new Map<string, { id: string; name: string; slug: string; count: number }>();
+
+  for (const item of items) {
+    if (!item.author) continue;
+    const current = map.get(item.author.id);
+    if (!current) {
+      map.set(item.author.id, {
+        id: item.author.id,
+        name: item.author.displayName,
+        slug: item.author.slug,
+        count: 1,
+      });
+      continue;
+    }
+    current.count += 1;
+  }
+
+  return Array.from(map.values())
+    .sort((a, b) => (b.count !== a.count ? b.count - a.count : a.name.localeCompare(b.name)))
+    .slice(0, limit);
+}
+
 async function assertCategorySlugUnique(args: {
   db: {
     category: {
@@ -699,6 +756,7 @@ export const discoveryRouter = createTRPCRouter({
         ...(input.featuredOnly ? { isFeatured: true } : {}),
         ...(input.category ? { category: { is: { slug: input.category } } } : {}),
         ...(input.tag ? { tags: { some: { tag: { slug: input.tag } } } } : {}),
+        ...(input.author ? { author: { is: { slug: input.author } } } : {}),
         ...(input.query
           ? {
               OR: [
@@ -732,6 +790,13 @@ export const discoveryRouter = createTRPCRouter({
                 slug: true,
               },
             },
+            author: {
+              select: {
+                id: true,
+                displayName: true,
+                slug: true,
+              },
+            },
             tags: {
               select: {
                 tag: {
@@ -754,6 +819,7 @@ export const discoveryRouter = createTRPCRouter({
         facets: {
           categories: getTopCategoryFacet(facetSource, 16),
           tags: getTopTagFacet(facetSource, 20),
+          authors: getTopAuthorFacet(facetSource, 12),
         },
       };
     }),
@@ -767,6 +833,7 @@ export const discoveryRouter = createTRPCRouter({
           pageInfo: getPageInfo(input.page, input.pageSize, 0),
           facets: {
             difficultyCounts: {},
+            authors: [],
           },
         };
       }
@@ -776,6 +843,7 @@ export const discoveryRouter = createTRPCRouter({
           status: COURSE_STATUS.PUBLISHED,
           ...(input.featuredOnly ? { isFeatured: true } : {}),
           ...(input.difficulty ? { difficultyLevel: input.difficulty } : {}),
+          ...(input.author ? { author: { is: { slug: input.author } } } : {}),
           ...(input.query
             ? {
                 OR: [
@@ -787,7 +855,7 @@ export const discoveryRouter = createTRPCRouter({
             : {}),
         };
 
-        const [items, total, difficultyGroups] = await Promise.all([
+        const [items, total, difficultyGroups, authorFacetSource] = await Promise.all([
           ctx.db.course.findMany({
             where,
             orderBy: orderBySort(input.sort),
@@ -796,6 +864,9 @@ export const discoveryRouter = createTRPCRouter({
             include: {
               coverImage: {
                 select: courseCoverSelect,
+              },
+              author: {
+                select: authorSelect,
               },
               _count: {
                 select: {
@@ -813,6 +884,21 @@ export const discoveryRouter = createTRPCRouter({
               _all: true,
             },
           }),
+          ctx.db.course.findMany({
+            where: {
+              status: COURSE_STATUS.PUBLISHED,
+            },
+            select: {
+              author: {
+                select: {
+                  id: true,
+                  displayName: true,
+                  slug: true,
+                },
+              },
+            },
+            take: 300,
+          }),
         ]);
 
         const difficultyCounts = difficultyGroups.reduce<Record<string, number>>((acc, group) => {
@@ -826,6 +912,7 @@ export const discoveryRouter = createTRPCRouter({
           pageInfo: getPageInfo(input.page, input.pageSize, total),
           facets: {
             difficultyCounts,
+            authors: getTopAuthorFacet(authorFacetSource, 12),
           },
         };
       } catch (error) {
@@ -835,6 +922,7 @@ export const discoveryRouter = createTRPCRouter({
             pageInfo: getPageInfo(input.page, input.pageSize, 0),
             facets: {
               difficultyCounts: {},
+              authors: [],
             },
           };
         }
@@ -1212,6 +1300,7 @@ export const discoveryRouter = createTRPCRouter({
                 take: input.featuredLimit,
                 include: {
                   coverImage: { select: courseCoverSelect },
+                  author: { select: authorSelect },
                   _count: { select: { lessons: true, sections: true } },
                 },
               })
@@ -1225,6 +1314,7 @@ export const discoveryRouter = createTRPCRouter({
                 take: input.recentLimit,
                 include: {
                   coverImage: { select: courseCoverSelect },
+                  author: { select: authorSelect },
                   _count: { select: { lessons: true, sections: true } },
                 },
               })

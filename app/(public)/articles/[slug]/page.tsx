@@ -71,10 +71,7 @@ export default async function ArticleDetailPage({ params }: ArticleDetailPagePro
     notFound();
   }
 
-  const [seo, identity] = await Promise.all([
-    getSeoSettings(),
-    caller.profile.getPublicIdentity(),
-  ]);
+  const seo = await getSeoSettings();
 
   const articleSchema = buildArticleSchema({
     seo,
@@ -84,7 +81,7 @@ export default async function ArticleDetailPage({ params }: ArticleDetailPagePro
     publishedAt: content.publishedAt,
     updatedAt: content.updatedAt,
     imageUrl: content.coverImage?.url ?? null,
-    authorName: identity.name,
+    authorName: content.author?.displayName,
     kind: "Article",
   });
   const breadcrumbSchema = buildBreadcrumbSchema(
@@ -109,4 +106,3 @@ export default async function ArticleDetailPage({ params }: ArticleDetailPagePro
     </SiteContainer>
   );
 }
-

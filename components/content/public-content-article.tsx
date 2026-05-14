@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import Link from "next/link";
-import { CalendarDaysIcon, FolderKanbanIcon } from "lucide-react";
+import { CalendarDaysIcon, FolderKanbanIcon, UserRoundIcon } from "lucide-react";
 import { INTERACTION_TARGET_TYPE, type ContentType } from "@/lib/content/enums";
 import { contentTypeMeta } from "@/lib/content/constants";
 import { CommentThread } from "@/components/interaction/comment-thread";
@@ -19,6 +19,7 @@ type PublicContentArticleProps = {
     bodyHtml: string;
     publishedAt: Date | null;
     category: { name: string; slug: string } | null;
+    author?: { displayName: string; slug: string } | null;
     tags: Array<{ tag: { name: string; slug: string } }>;
     coverImage: { url: string; altText: string | null } | null;
   };
@@ -50,6 +51,15 @@ export function PublicContentArticle({ type, content, relatedItems = [] }: Publi
             >
               <FolderKanbanIcon className="size-3.5" />
               {content.category.name}
+            </Link>
+          ) : null}
+          {content.author ? (
+            <Link
+              href={`/authors/${content.author.slug}`}
+              className="inline-flex items-center gap-1 rounded-full bg-muted/65 px-3 py-1 hover:text-foreground"
+            >
+              <UserRoundIcon className="size-3.5" />
+              {content.author.displayName}
             </Link>
           ) : null}
         </div>

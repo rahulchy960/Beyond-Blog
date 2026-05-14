@@ -47,6 +47,7 @@ const envSchema = z.object({
     .string()
     .trim()
     .startsWith("postgresql://", "DIRECT_URL must be a Neon/Postgres URL."),
+  ALLOWED_ADMIN_IDS: optionalString(),
   SINGLE_ADMIN_CLERK_USER_ID: optionalString(),
   SINGLE_ADMIN_EMAIL: optionalEmail(),
   SINGLE_ADMIN_FIRST_NAME: optionalString(),
@@ -112,8 +113,9 @@ if (isStrictProduction && !envData.UPLOADTHING_TOKEN) {
 }
 
 if (
-  (envData.SINGLE_ADMIN_CLERK_USER_ID && !envData.SINGLE_ADMIN_EMAIL) ||
-  (!envData.SINGLE_ADMIN_CLERK_USER_ID && envData.SINGLE_ADMIN_EMAIL)
+  !envData.ALLOWED_ADMIN_IDS &&
+  ((envData.SINGLE_ADMIN_CLERK_USER_ID && !envData.SINGLE_ADMIN_EMAIL) ||
+    (!envData.SINGLE_ADMIN_CLERK_USER_ID && envData.SINGLE_ADMIN_EMAIL))
 ) {
   throw new Error(
     "SINGLE_ADMIN_CLERK_USER_ID and SINGLE_ADMIN_EMAIL must be provided together.",
@@ -122,10 +124,11 @@ if (
 
 if (
   isStrictProduction &&
+  !envData.ALLOWED_ADMIN_IDS &&
   (!envData.SINGLE_ADMIN_CLERK_USER_ID || !envData.SINGLE_ADMIN_EMAIL)
 ) {
   throw new Error(
-    "Single-admin environment configuration is required in production.",
+    "ALLOWED_ADMIN_IDS is required in production.",
   );
 }
 

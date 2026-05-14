@@ -18,6 +18,7 @@ type ContentCardProps = {
     summary: string | null;
     publishedAt: Date | string | null;
     category: { name: string; slug: string } | null;
+    author?: { displayName: string; slug: string } | null;
     tags: Array<{ tag: { name: string; slug: string } }>;
   };
 };
@@ -37,6 +38,12 @@ export function ContentCard({ type, item }: ContentCardProps) {
               {item.category ? (
                 <Link href={`/categories/${item.category.slug}`} className="hover:text-foreground">
                   {item.category.name}
+                </Link>
+              ) : null}
+              {item.author ? " - " : ""}
+              {item.author ? (
+                <Link href={`/authors/${item.author.slug}`} className="hover:text-foreground">
+                  {item.author.displayName}
                 </Link>
               ) : null}
             </CardDescription>

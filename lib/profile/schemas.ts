@@ -9,13 +9,19 @@ const optionalUrlField = z
   .nullable();
 
 export const adminProfileSettingsInputSchema = z.object({
-  fullName: z.string().trim().max(140).optional().nullable(),
+  displayName: z.string().trim().min(2).max(140),
+  slug: z
+    .string()
+    .trim()
+    .min(2)
+    .max(160)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens only."),
   designation: z.string().trim().max(180).optional().nullable(),
   bio: z.string().trim().max(5000).optional().nullable(),
   address: z.string().trim().max(1000).optional().nullable(),
   email: z.string().trim().email().max(320).optional().nullable(),
   phone: z.string().trim().max(64).optional().nullable(),
-  jobs: z.string().trim().max(5000).optional().nullable(),
+  experience: z.string().trim().max(5000).optional().nullable(),
   education: z.string().trim().max(5000).optional().nullable(),
   profileImageId: z.string().trim().min(1).optional().nullable(),
   linkedinUrl: optionalUrlField,
@@ -33,4 +39,3 @@ export function normalizeOptionalText(value?: string | null) {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
-

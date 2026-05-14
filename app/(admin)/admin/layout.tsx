@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdminContext } from "@/lib/auth/admin";
 
 type AdminLayoutProps = {
   children: React.ReactNode;
@@ -15,12 +15,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  const admin = await requireAdmin();
-  const adminLabel =
-    `${admin.firstName ?? ""} ${admin.lastName ?? ""}`.trim() || admin.email;
+  const { adminUser, adminProfile } = await requireAdminContext();
+  const adminLabel = adminProfile.displayName;
+  const adminImageUrl = adminProfile.profileImageId ? null : adminUser.imageUrl;
 
   return (
-    <AdminShell adminLabel={adminLabel} adminImageUrl={admin.imageUrl}>
+    <AdminShell adminLabel={adminLabel} adminImageUrl={adminImageUrl}>
       {children}
     </AdminShell>
   );

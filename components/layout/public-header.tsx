@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MenuIcon } from "lucide-react";
 import { getPublicServerCaller } from "@/server/api/caller";
+import { platformName } from "@/lib/constants";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { buttonVariants } from "@/lib/ui/button-variants";
@@ -15,6 +16,7 @@ const PUBLIC_NAV = [
   { label: "Articles", href: "/articles" },
   { label: "Projects", href: "/projects" },
   { label: "Courses", href: "/courses" },
+  { label: "Authors", href: "/authors" },
   { label: "Quizzes", href: "/quizzes" },
 ];
 
@@ -26,7 +28,11 @@ function getInitials(label: string) {
 
 export async function PublicHeader() {
   const caller = await getPublicServerCaller();
-  const identity = await caller.profile.getPublicIdentity();
+  const identity = await caller.profile.getPublicIdentity().catch(() => ({
+    name: platformName,
+    slug: null,
+    imageUrl: null,
+  }));
   const adminLabel = identity.name;
 
   return (
@@ -86,5 +92,3 @@ export async function PublicHeader() {
     </header>
   );
 }
-
-
