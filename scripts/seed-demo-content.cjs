@@ -122,7 +122,6 @@ async function seedCourse(input) {
       seoDescription: input.seoDescription,
       publishedAt: now,
       createdByAdminId: input.adminId,
-      authorId: input.authorId,
     },
     create: {
       title: input.title,
@@ -138,7 +137,6 @@ async function seedCourse(input) {
       seoDescription: input.seoDescription,
       publishedAt: now,
       createdByAdminId: input.adminId,
-      authorId: input.authorId,
     },
   });
 
@@ -232,7 +230,6 @@ async function seedQuiz(input) {
       seoDescription: input.seoDescription,
       publishedAt: now,
       createdByAdminId: input.adminId,
-      authorId: input.authorId,
       contentId: input.contentId ?? null,
       courseId: input.courseId ?? null,
     },
@@ -250,7 +247,6 @@ async function seedQuiz(input) {
       seoDescription: input.seoDescription,
       publishedAt: now,
       createdByAdminId: input.adminId,
-      authorId: input.authorId,
       contentId: input.contentId ?? null,
       courseId: input.courseId ?? null,
     },
@@ -298,23 +294,13 @@ async function seedQuiz(input) {
 }
 
 async function main() {
-  const owner = await prisma.adminUser.findFirst({
+  const owner = await prisma.adminUser.findUnique({
     where: { role: "OWNER" },
-    orderBy: { createdAt: "asc" },
     select: { id: true, email: true, clerkUserId: true },
   });
 
   if (!owner) {
     throw new Error("No OWNER admin found. Run `npm run db:seed` first.");
-  }
-
-  const ownerProfile = await prisma.adminProfile.findUnique({
-    where: { adminUserId: owner.id },
-    select: { id: true },
-  });
-
-  if (!ownerProfile) {
-    throw new Error("No admin profile found for OWNER. Run `npm run db:seed` first.");
   }
 
   const webCategory = await ensureCategory(
@@ -339,7 +325,7 @@ async function main() {
 
   const contentEntries = await Promise.all([
     upsertContent({
-    authorId: ownerProfile.id,
+      authorId: owner.id,
       type: "JOURNAL",
       title: "Engineering Notes: Designing Reliable API Boundaries",
       slug: "engineering-notes-api-boundaries",
@@ -356,7 +342,7 @@ async function main() {
       isFeatured: true,
     }),
     upsertContent({
-    authorId: ownerProfile.id,
+      authorId: owner.id,
       type: "JOURNAL",
       title: "Field Log: Improving Runtime Stability in Production",
       slug: "field-log-runtime-stability",
@@ -373,7 +359,7 @@ async function main() {
       isFeatured: false,
     }),
     upsertContent({
-    authorId: ownerProfile.id,
+      authorId: owner.id,
       type: "ARTICLE",
       title: "Production Patterns for Next.js App Router + tRPC",
       slug: "production-patterns-nextjs-trpc",
@@ -390,7 +376,7 @@ async function main() {
       isFeatured: true,
     }),
     upsertContent({
-    authorId: ownerProfile.id,
+      authorId: owner.id,
       type: "ARTICLE",
       title: "Query Efficiency with Prisma and PostgreSQL",
       slug: "query-efficiency-prisma-postgresql",
@@ -407,7 +393,7 @@ async function main() {
       isFeatured: false,
     }),
     upsertContent({
-    authorId: ownerProfile.id,
+      authorId: owner.id,
       type: "PROJECT",
       title: "Project: Typed Content CMS Foundation",
       slug: "project-typed-content-cms-foundation",
@@ -424,7 +410,7 @@ async function main() {
       isFeatured: true,
     }),
     upsertContent({
-    authorId: ownerProfile.id,
+      authorId: owner.id,
       type: "PROJECT",
       title: "Project: Performance and Resilience Audit",
       slug: "project-performance-resilience-audit",
@@ -444,7 +430,6 @@ async function main() {
 
   const courseA = await seedCourse({
     adminId: owner.id,
-    authorId: ownerProfile.id,
     title: "Full-Stack TypeScript Foundations",
     slug: "fullstack-typescript-foundations",
     summary: "Build robust full-stack apps with typed contracts and production discipline.",
@@ -461,7 +446,6 @@ async function main() {
 
   const courseB = await seedCourse({
     adminId: owner.id,
-    authorId: ownerProfile.id,
     title: "Next.js Performance and Deployment",
     slug: "nextjs-performance-deployment",
     summary: "Optimize rendering, caching, and launch workflows for modern App Router apps.",
@@ -480,7 +464,6 @@ async function main() {
 
   await seedQuiz({
     adminId: owner.id,
-    authorId: ownerProfile.id,
     title: "Web Architecture Fundamentals Quiz",
     slug: "web-architecture-fundamentals-quiz",
     description: "Test your understanding of typed APIs, validation, and scalable route design.",
@@ -495,7 +478,6 @@ async function main() {
 
   await seedQuiz({
     adminId: owner.id,
-    authorId: ownerProfile.id,
     title: "Next.js Deployment Readiness Quiz",
     slug: "nextjs-deployment-readiness-quiz",
     description: "Check your launch-readiness knowledge for production Next.js applications.",

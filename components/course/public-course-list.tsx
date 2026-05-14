@@ -18,7 +18,6 @@ type PublicCourseListProps = {
       thumbnailUrl: string | null;
       altText: string | null;
     } | null;
-    author?: { displayName: string; slug: string } | null;
     _count: {
       lessons: number;
       sections: number;
@@ -32,7 +31,7 @@ export function PublicCourseList({ items }: PublicCourseListProps) {
       <SectionHeader
         eyebrow="Beyond Blog"
         title="Courses"
-        description="Structured multi-lesson learning paths from the Beyond Blog authors."
+        description="Structured multi-lesson learning paths authored by the Beyond Blog admin."
       />
 
       {items.length === 0 ? (
@@ -51,3 +50,4 @@ export function PublicCourseList({ items }: PublicCourseListProps) {
     </section>
   );
 }
+

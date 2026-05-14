@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import Link from "next/link";
-import { Clock3Icon, ExternalLinkIcon, Layers3Icon, SparklesIcon, UserRoundIcon } from "lucide-react";
+import { Clock3Icon, ExternalLinkIcon, Layers3Icon, SparklesIcon } from "lucide-react";
 import { INTERACTION_TARGET_TYPE } from "@/lib/content/enums";
 import { courseDifficultyLabels, courseLessonTypeLabels } from "@/lib/course/constants";
 import { CommentThread } from "@/components/interaction/comment-thread";
@@ -26,7 +26,6 @@ type PublicCourseDetailProps = {
       thumbnailUrl: string | null;
       altText: string | null;
     } | null;
-    author: { displayName: string; slug: string } | null;
     sections: Array<{
       id: string;
       title: string;
@@ -151,14 +150,6 @@ export function PublicCourseDetail({ course, relatedItems = [] }: PublicCourseDe
           <Badge variant="secondary" className="gap-1"><Layers3Icon className="size-3" />Structured modules</Badge>
           {course.isFeatured ? <Badge className="gap-1"><SparklesIcon className="size-3" />Featured</Badge> : null}
           {course.publishedAt ? <Badge variant="secondary">{format(new Date(course.publishedAt), "MMM d, yyyy")}</Badge> : null}
-          {course.author ? (
-            <Link href={`/authors/${course.author.slug}`}>
-              <Badge variant="secondary" className="gap-1">
-                <UserRoundIcon className="size-3" />
-                {course.author.displayName}
-              </Badge>
-            </Link>
-          ) : null}
         </div>
 
         {course.summary ? <p className="max-w-3xl text-lg leading-8 text-muted-foreground">{course.summary}</p> : null}
@@ -216,3 +207,4 @@ export function PublicCourseDetail({ course, relatedItems = [] }: PublicCourseDe
     </article>
   );
 }
+

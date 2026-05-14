@@ -25,11 +25,6 @@ export const adminRouter = createTRPCRouter({
       firstName: admin.firstName,
       lastName: admin.lastName,
       imageUrl: admin.imageUrl,
-      authorProfile: {
-        id: ctx.adminProfile.id,
-        displayName: ctx.adminProfile.displayName,
-        slug: ctx.adminProfile.slug,
-      },
     };
   }),
 
@@ -107,3 +102,4 @@ export const adminRouter = createTRPCRouter({
       };
     }),
 });
+

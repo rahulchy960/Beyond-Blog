@@ -44,14 +44,13 @@ export function AdminProfileSettingsForm() {
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(adminProfileSettingsInputSchema),
     defaultValues: {
-      displayName: "",
-      slug: "",
+      fullName: "",
       designation: "",
       bio: "",
       address: "",
       email: "",
       phone: "",
-      experience: "",
+      jobs: "",
       education: "",
       profileImageId: null,
       linkedinUrl: "",
@@ -70,14 +69,13 @@ export function AdminProfileSettingsForm() {
     }
 
     form.reset({
-      displayName: profileQuery.data.displayName ?? "",
-      slug: profileQuery.data.slug ?? "",
+      fullName: profileQuery.data.fullName ?? "",
       designation: profileQuery.data.designation ?? "",
       bio: profileQuery.data.bio ?? "",
       address: profileQuery.data.address ?? "",
       email: profileQuery.data.email ?? "",
       phone: profileQuery.data.phone ?? "",
-      experience: profileQuery.data.experience ?? "",
+      jobs: profileQuery.data.jobs ?? "",
       education: profileQuery.data.education ?? "",
       profileImageId: profileQuery.data.profileImageId,
       linkedinUrl: profileQuery.data.linkedinUrl ?? "",
@@ -155,7 +153,7 @@ export function AdminProfileSettingsForm() {
     <div className="space-y-7">
       <PageHeader
         title="Profile & Footer Settings"
-        description="Manage your author identity. Saving this profile makes it the featured footer profile."
+        description="Manage admin identity and public footer content. Empty fields stay hidden on the public site."
       />
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6 xl:grid-cols-[1fr_25rem]">
@@ -167,14 +165,10 @@ export function AdminProfileSettingsForm() {
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="displayName">Display name</Label>
-                <Input id="displayName" {...form.register("displayName")} />
+                <Label htmlFor="fullName">Full name</Label>
+                <Input id="fullName" {...form.register("fullName")} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="slug">Author slug</Label>
-                <Input id="slug" {...form.register("slug")} />
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
                 <Label htmlFor="designation">Designation</Label>
                 <Input id="designation" {...form.register("designation")} />
               </div>
@@ -203,8 +197,8 @@ export function AdminProfileSettingsForm() {
                 <Input id="phone" {...form.register("phone")} />
               </div>
               <div className="space-y-1.5 md:col-span-2">
-                <Label htmlFor="experience">Experience</Label>
-                <Textarea id="experience" rows={4} {...form.register("experience")} />
+                <Label htmlFor="jobs">Jobs / Experience</Label>
+                <Textarea id="jobs" rows={4} {...form.register("jobs")} />
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <Label htmlFor="education">Education</Label>
@@ -276,7 +270,7 @@ export function AdminProfileSettingsForm() {
               <CardDescription>Only populated fields will appear on the public footer.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              {hasValue(values.displayName) ? <p className="font-medium">{values.displayName}</p> : null}
+              {hasValue(values.fullName) ? <p className="font-medium">{values.fullName}</p> : null}
               {hasValue(values.designation) ? <p className="text-muted-foreground">{values.designation}</p> : null}
               {hasValue(values.bio) ? <p className="leading-7 text-muted-foreground">{values.bio}</p> : null}
               {hasValue(values.email) ? (
@@ -325,3 +319,4 @@ export function AdminProfileSettingsForm() {
     </div>
   );
 }
+

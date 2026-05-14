@@ -32,7 +32,6 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   const params = await searchParams;
   const query = getSearchParam(params.q).trim();
   const difficulty = getSearchParam(params.difficulty).trim();
-  const author = getSearchParam(params.author).trim();
   const sort = getSearchParam(params.sort) === "oldest" ? "oldest" : "newest";
   const featuredOnly = getSearchParamBoolean(params.featured);
   const page = parsePageParam(getSearchParam(params.page), 1);
@@ -45,7 +44,6 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
       difficulty === "BEGINNER" || difficulty === "INTERMEDIATE" || difficulty === "ADVANCED"
         ? difficulty
         : undefined,
-    author: author || undefined,
     featuredOnly: featuredOnly || undefined,
     sort,
     page,
@@ -57,7 +55,6 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
     const next = new URLSearchParams();
     if (query && key !== "q") next.set("q", query);
     if (difficulty && key !== "difficulty") next.set("difficulty", difficulty);
-    if (author && key !== "author") next.set("author", author);
     if (featuredOnly && key !== "featured") next.set("featured", "1");
     if (sort !== "newest" && key !== "sort") next.set("sort", sort);
     if (page > 1 && key !== "page") next.set("page", String(page));
@@ -69,7 +66,6 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
     const next = new URLSearchParams();
     if (query) next.set("q", query);
     if (difficulty) next.set("difficulty", difficulty);
-    if (author) next.set("author", author);
     if (featuredOnly) next.set("featured", "1");
     if (sort !== "newest") next.set("sort", sort);
     if (nextPage > 1) next.set("page", String(nextPage));
@@ -80,7 +76,6 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   const activeFilters = [
     ...(query ? [{ label: `Query: ${query}`, href: buildHrefWithout("q") }] : []),
     ...(difficulty ? [{ label: `Difficulty: ${difficulty.toLowerCase()}`, href: buildHrefWithout("difficulty") }] : []),
-    ...(author ? [{ label: `Author: ${author}`, href: buildHrefWithout("author") }] : []),
     ...(featuredOnly ? [{ label: "Featured only", href: buildHrefWithout("featured") }] : []),
     ...(sort !== "newest" ? [{ label: "Oldest first", href: buildHrefWithout("sort") }] : []),
   ];
@@ -102,15 +97,6 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
                 options: courseDifficultyOptions.map((item) => ({
                   label: item.label,
                   value: item.value,
-                })),
-              },
-              {
-                name: "author",
-                label: "Author",
-                value: author,
-                options: data.facets.authors.map((item) => ({
-                  label: `${item.name} (${item.count})`,
-                  value: item.slug,
                 })),
               },
               {
@@ -141,4 +127,5 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
     </div>
   );
 }
+
 

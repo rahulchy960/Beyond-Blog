@@ -8,7 +8,7 @@ Use this checklist before each production launch.
 - [ ] `DATABASE_URL` and `DIRECT_URL` point to production Neon.
 - [ ] Clerk production keys are configured (`pk_live_`, `sk_live_`).
 - [ ] `UPLOADTHING_TOKEN` is configured.
-- [ ] `ALLOWED_ADMIN_IDS` is set with the Clerk user IDs for allowed admins.
+- [ ] `SINGLE_ADMIN_CLERK_USER_ID` and `SINGLE_ADMIN_EMAIL` are set.
 - [ ] `ALLOW_ADMIN_REASSIGN=false`.
 - [ ] Optional secrets (`INTERACTION_TOKEN_SECRET`, `CLERK_WEBHOOK_SECRET`) are set if used.
 

@@ -33,7 +33,6 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
   const query = getSearchParam(params.q).trim();
   const category = getSearchParam(params.category).trim();
   const tag = getSearchParam(params.tag).trim();
-  const author = getSearchParam(params.author).trim();
   const sort = getSearchParam(params.sort) === "oldest" ? "oldest" : "newest";
   const featuredOnly = getSearchParamBoolean(params.featured);
   const page = parsePageParam(getSearchParam(params.page), 1);
@@ -45,7 +44,6 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     query: query || undefined,
     category: category || undefined,
     tag: tag || undefined,
-    author: author || undefined,
     featuredOnly: featuredOnly || undefined,
     sort,
     page,
@@ -58,7 +56,6 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     if (query && key !== "q") next.set("q", query);
     if (category && key !== "category") next.set("category", category);
     if (tag && key !== "tag") next.set("tag", tag);
-    if (author && key !== "author") next.set("author", author);
     if (featuredOnly && key !== "featured") next.set("featured", "1");
     if (sort !== "newest" && key !== "sort") next.set("sort", sort);
     if (page > 1 && key !== "page") next.set("page", String(page));
@@ -71,7 +68,6 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     if (query) next.set("q", query);
     if (category) next.set("category", category);
     if (tag) next.set("tag", tag);
-    if (author) next.set("author", author);
     if (featuredOnly) next.set("featured", "1");
     if (sort !== "newest") next.set("sort", sort);
     if (nextPage > 1) next.set("page", String(nextPage));
@@ -83,7 +79,6 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     ...(query ? [{ label: `Query: ${query}`, href: buildHrefWithout("q") }] : []),
     ...(category ? [{ label: `Category: ${category}`, href: buildHrefWithout("category") }] : []),
     ...(tag ? [{ label: `Tag: ${tag}`, href: buildHrefWithout("tag") }] : []),
-    ...(author ? [{ label: `Author: ${author}`, href: buildHrefWithout("author") }] : []),
     ...(featuredOnly ? [{ label: "Featured only", href: buildHrefWithout("featured") }] : []),
     ...(sort !== "newest" ? [{ label: "Oldest first", href: buildHrefWithout("sort") }] : []),
   ];
@@ -117,15 +112,6 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
                 })),
               },
               {
-                name: "author",
-                label: "Author",
-                value: author,
-                options: data.facets.authors.map((item) => ({
-                  label: `${item.name} (${item.count})`,
-                  value: item.slug,
-                })),
-              },
-              {
                 name: "sort",
                 label: "Sort",
                 value: sort,
@@ -153,3 +139,4 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     </div>
   );
 }
+

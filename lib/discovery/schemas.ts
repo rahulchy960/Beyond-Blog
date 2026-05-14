@@ -65,7 +65,6 @@ export const publicContentDiscoveryInputSchema = z.object({
   query: optionalSearchText,
   category: optionalSlug,
   tag: optionalSlug,
-  author: optionalSlug,
   featuredOnly: z.boolean().optional(),
   sort: z.enum(["newest", "oldest"]).default("newest"),
   page: pageSchema,
@@ -75,7 +74,6 @@ export const publicContentDiscoveryInputSchema = z.object({
 export const publicCourseDiscoveryInputSchema = z.object({
   query: optionalSearchText,
   difficulty: z.enum(COURSE_DIFFICULTY_LEVELS).optional(),
-  author: optionalSlug,
   featuredOnly: z.boolean().optional(),
   sort: z.enum(["newest", "oldest"]).default("newest"),
   page: pageSchema,

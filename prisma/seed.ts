@@ -36,7 +36,6 @@ const prisma = new PrismaClient({
 });
 
 const rawSeedEnvSchema = z.object({
-  ALLOWED_ADMIN_IDS: z.string().min(1).optional(),
   SINGLE_ADMIN_CLERK_USER_ID: z.string().min(1).optional(),
   SINGLE_ADMIN_EMAIL: z.string().email().optional(),
   SINGLE_ADMIN_FIRST_NAME: z.string().min(1).optional(),
@@ -1121,79 +1120,47 @@ const quizSeeds: QuizSeed[] = [
   },
 ];
 
-async function seedAdmins() {
+async function seedAdmin() {
   const rawEnv = rawSeedEnvSchema.parse(process.env);
-  const allowedIds =
-    rawEnv.ALLOWED_ADMIN_IDS?.split(",").map((item) => item.trim()).filter(Boolean) ??
-    [rawEnv.SINGLE_ADMIN_CLERK_USER_ID ?? "demo_beyond_blog_admin", "demo_beyond_blog_editor"];
+  const existingOwner = await prisma.adminUser.findUnique({
+    where: { role: AdminRole.OWNER },
+  });
 
-  const adminInputs = [
-    {
-      clerkUserId: allowedIds[0] ?? "demo_beyond_blog_admin",
-      email: rawEnv.SINGLE_ADMIN_EMAIL ?? "admin@beyondblog.dev",
-      firstName: rawEnv.SINGLE_ADMIN_FIRST_NAME ?? "Maya",
-      lastName: rawEnv.SINGLE_ADMIN_LAST_NAME ?? "Rao",
-      displayName: "Maya Rao",
-      slug: "maya-rao",
-      designation: "Founder, product engineer, and learning systems designer",
-      bio:
-        "Maya builds practical publishing and learning systems for independent experts. Beyond Blog is her working archive for product thinking, implementation notes, courses, and public experiments.",
-      experience:
-        "Founder at Beyond Blog\nFormer product engineering lead for editorial and education products\nAdvisor to small teams building content-led software",
-      education:
-        "M.S. Human-Computer Interaction\nB.Tech Computer Science\nContinuing research in learning design and creator tooling",
-      socials: {
-        linkedinUrl: "https://www.linkedin.com/in/mayarao-demo",
-        githubUrl: "https://github.com/beyondblog-demo",
-        websiteUrl: "https://beyondblog.example.com",
-      },
-    },
-    {
-      clerkUserId: allowedIds[1] ?? "demo_beyond_blog_editor",
-      email: "editor@beyondblog.dev",
-      firstName: "Arjun",
-      lastName: "Sen",
-      displayName: "Arjun Sen",
-      slug: "arjun-sen",
-      designation: "Editorial systems architect and course producer",
-      bio:
-        "Arjun turns implementation lessons into durable editorial systems. His work focuses on applied analytics, structured courses, and pragmatic content operations.",
-      experience:
-        "Editorial systems consultant for education teams\nFormer analytics lead for creator platforms\nCourse producer for technical publishing workflows",
-      education:
-        "M.A. Digital Media Strategy\nB.E. Information Technology\nOngoing research in editorial analytics and public learning loops",
-      socials: {
-        linkedinUrl: "https://www.linkedin.com/in/arjunsen-demo",
-        githubUrl: "https://github.com/arjunsen-demo",
-      },
-    },
-  ];
+  const adminInput = {
+    clerkUserId: rawEnv.SINGLE_ADMIN_CLERK_USER_ID ?? existingOwner?.clerkUserId ?? "demo_beyond_blog_admin",
+    email: rawEnv.SINGLE_ADMIN_EMAIL ?? existingOwner?.email ?? "admin@beyondblog.dev",
+    firstName: rawEnv.SINGLE_ADMIN_FIRST_NAME ?? existingOwner?.firstName ?? "Maya",
+    lastName: rawEnv.SINGLE_ADMIN_LAST_NAME ?? existingOwner?.lastName ?? "Rao",
+  };
 
-  const users = [];
-  for (const adminInput of adminInputs) {
-    users.push(
-      await prisma.adminUser.upsert({
-        where: { clerkUserId: adminInput.clerkUserId },
-        update: {
-          email: adminInput.email,
-          firstName: adminInput.firstName,
-          lastName: adminInput.lastName,
-          isActive: true,
-          role: AdminRole.OWNER,
-        },
-        create: {
-          role: AdminRole.OWNER,
-          clerkUserId: adminInput.clerkUserId,
-          email: adminInput.email,
-          firstName: adminInput.firstName,
-          lastName: adminInput.lastName,
-          isActive: true,
-        },
-      }),
+  if (
+    existingOwner &&
+    existingOwner.clerkUserId !== adminInput.clerkUserId &&
+    rawEnv.ALLOW_ADMIN_REASSIGN !== "true"
+  ) {
+    throw new Error(
+      `Owner admin is already assigned to clerkUserId=${existingOwner.clerkUserId}. Set ALLOW_ADMIN_REASSIGN=true to reassign intentionally.`,
     );
   }
 
-  return { users, profileInputs: adminInputs };
+  return prisma.adminUser.upsert({
+    where: { role: AdminRole.OWNER },
+    update: {
+      clerkUserId: adminInput.clerkUserId,
+      email: adminInput.email,
+      firstName: adminInput.firstName,
+      lastName: adminInput.lastName,
+      isActive: true,
+    },
+    create: {
+      role: AdminRole.OWNER,
+      clerkUserId: adminInput.clerkUserId,
+      email: adminInput.email,
+      firstName: adminInput.firstName,
+      lastName: adminInput.lastName,
+      isActive: true,
+    },
+  });
 }
 
 async function seedMedia(adminId: string) {
@@ -1282,16 +1249,15 @@ async function seedTaxonomy() {
 }
 
 async function seedContent(params: {
-  authorProfileIds: string[];
+  adminId: string;
   media: Map<string, { id: string }>;
   categories: Map<string, { id: string }>;
   tags: Map<string, { id: string }>;
 }) {
   const contentBySlug = new Map<string, Awaited<ReturnType<typeof prisma.content.upsert>>>();
 
-  for (const [index, item] of contentSeeds.entries()) {
+  for (const item of contentSeeds) {
     const slug = slugify(item.title);
-    const authorId = params.authorProfileIds[index % params.authorProfileIds.length];
     const coverImage = params.media.get(item.coverKey);
     const category = params.categories.get(item.categorySlug);
 
@@ -1315,7 +1281,7 @@ async function seedContent(params: {
         seoTitle: `${item.title} | Beyond Blog`,
         seoDescription: shortSeoDescription(item.summary),
         publishedAt: item.publishedAt ?? null,
-        authorId,
+        authorId: params.adminId,
         categoryId: category.id,
         coverImageAssetId: coverImage.id,
         createdAt: item.createdAt,
@@ -1332,7 +1298,7 @@ async function seedContent(params: {
         seoTitle: `${item.title} | Beyond Blog`,
         seoDescription: shortSeoDescription(item.summary),
         publishedAt: item.publishedAt ?? null,
-        authorId,
+        authorId: params.adminId,
         categoryId: category.id,
         coverImageAssetId: coverImage.id,
         createdAt: item.createdAt,
@@ -1358,16 +1324,13 @@ async function seedContent(params: {
 }
 
 async function seedCourses(params: {
-  adminUserIds: string[];
-  authorProfileIds: string[];
+  adminId: string;
   media: Map<string, { id: string }>;
 }) {
   const courses = new Map<string, Awaited<ReturnType<typeof prisma.course.upsert>>>();
 
-  for (const [index, item] of courseSeeds.entries()) {
+  for (const item of courseSeeds) {
     const slug = slugify(item.title);
-    const adminUserId = params.adminUserIds[index % params.adminUserIds.length];
-    const authorId = params.authorProfileIds[index % params.authorProfileIds.length];
     const coverImage = params.media.get(item.coverKey);
     if (!coverImage) {
       throw new Error(`Missing course cover media seed for ${item.coverKey}.`);
@@ -1395,8 +1358,7 @@ async function seedCourses(params: {
         seoTitle: `${item.title} | Beyond Blog Courses`,
         seoDescription: shortSeoDescription(item.summary),
         publishedAt: item.publishedAt,
-        createdByAdminId: adminUserId,
-        authorId,
+        createdByAdminId: params.adminId,
       },
       create: {
         title: item.title,
@@ -1412,8 +1374,7 @@ async function seedCourses(params: {
         seoTitle: `${item.title} | Beyond Blog Courses`,
         seoDescription: shortSeoDescription(item.summary),
         publishedAt: item.publishedAt,
-        createdByAdminId: adminUserId,
-        authorId,
+        createdByAdminId: params.adminId,
         createdAt: item.publishedAt,
       },
     });
@@ -1531,16 +1492,13 @@ async function seedLikes(contentBySlug: Map<string, { id: string; slug: string; 
 }
 
 async function seedQuizzes(params: {
-  adminUserIds: string[];
-  authorProfileIds: string[];
+  adminId: string;
   media: Map<string, { id: string }>;
   contentBySlug: Map<string, { id: string }>;
   courses: Map<string, { id: string }>;
 }) {
-  for (const [index, item] of quizSeeds.entries()) {
+  for (const item of quizSeeds) {
     const slug = slugify(item.title);
-    const adminUserId = params.adminUserIds[index % params.adminUserIds.length];
-    const authorId = params.authorProfileIds[index % params.authorProfileIds.length];
     const existingQuiz = await prisma.quiz.findUnique({ where: { slug } });
     if (existingQuiz) {
       await prisma.quizAnswer.deleteMany({ where: { attempt: { quizId: existingQuiz.id } } });
@@ -1570,8 +1528,7 @@ async function seedQuizzes(params: {
         coverImageId: coverImage.id,
         seoTitle: `${item.title} | Beyond Blog Quiz`,
         seoDescription: shortSeoDescription(item.description),
-        createdByAdminId: adminUserId,
-        authorId,
+        createdByAdminId: params.adminId,
         publishedAt: daysAgo(9),
       },
       create: {
@@ -1589,8 +1546,7 @@ async function seedQuizzes(params: {
         coverImageId: coverImage.id,
         seoTitle: `${item.title} | Beyond Blog Quiz`,
         seoDescription: shortSeoDescription(item.description),
-        createdByAdminId: adminUserId,
-        authorId,
+        createdByAdminId: params.adminId,
         publishedAt: daysAgo(9),
         createdAt: daysAgo(10),
       },
@@ -1663,113 +1619,54 @@ async function seedQuizzes(params: {
   }
 }
 
-async function seedAdminProfile(adminId: string, clerkUserId: string, profileImageId: string) {
-  return prisma.adminProfile.upsert({
-    where: { adminUserId: adminId },
+async function seedAdminProfile(adminId: string, profileImageId: string) {
+  await prisma.adminProfile.upsert({
+    where: { singletonKey: "ADMIN_PROFILE" },
     update: {
       adminUserId: adminId,
-      displayName: "Maya Rao",
-      slug: "maya-rao",
-      clerkUserId,
+      fullName: "Maya Rao",
       designation: "Founder, product engineer, and learning systems designer",
       bio:
         "Maya builds practical publishing and learning systems for independent experts. Beyond Blog is her working archive for product thinking, implementation notes, courses, and public experiments.",
       address: "Bengaluru, India",
       email: process.env.SINGLE_ADMIN_EMAIL ?? "admin@beyondblog.dev",
       phone: null,
-      experience:
+      jobs:
         "Founder at Beyond Blog\nFormer product engineering lead for editorial and education products\nAdvisor to small teams building content-led software",
       education:
         "M.S. Human-Computer Interaction\nB.Tech Computer Science\nContinuing research in learning design and creator tooling",
       profileImageId,
-      socials: {
-        linkedinUrl: "https://www.linkedin.com/in/mayarao-demo",
-        githubUrl: "https://github.com/beyondblog-demo",
-        websiteUrl: "https://beyondblog.example.com",
-      },
+      linkedinUrl: "https://www.linkedin.com/in/mayarao-demo",
+      githubUrl: "https://github.com/beyondblog-demo",
+      twitterUrl: null,
+      websiteUrl: "https://beyondblog.example.com",
       copyrightText: `© ${new Date().getFullYear()} Beyond Blog. Built for thoughtful public learning.`,
     },
     create: {
+      singletonKey: "ADMIN_PROFILE",
       adminUserId: adminId,
-      displayName: "Maya Rao",
-      slug: "maya-rao",
-      clerkUserId,
+      fullName: "Maya Rao",
       designation: "Founder, product engineer, and learning systems designer",
       bio:
         "Maya builds practical publishing and learning systems for independent experts. Beyond Blog is her working archive for product thinking, implementation notes, courses, and public experiments.",
       address: "Bengaluru, India",
       email: process.env.SINGLE_ADMIN_EMAIL ?? "admin@beyondblog.dev",
       phone: null,
-      experience:
+      jobs:
         "Founder at Beyond Blog\nFormer product engineering lead for editorial and education products\nAdvisor to small teams building content-led software",
       education:
         "M.S. Human-Computer Interaction\nB.Tech Computer Science\nContinuing research in learning design and creator tooling",
       profileImageId,
-      socials: {
-        linkedinUrl: "https://www.linkedin.com/in/mayarao-demo",
-        githubUrl: "https://github.com/beyondblog-demo",
-        websiteUrl: "https://beyondblog.example.com",
-      },
+      linkedinUrl: "https://www.linkedin.com/in/mayarao-demo",
+      githubUrl: "https://github.com/beyondblog-demo",
+      twitterUrl: null,
+      websiteUrl: "https://beyondblog.example.com",
       copyrightText: `© ${new Date().getFullYear()} Beyond Blog. Built for thoughtful public learning.`,
     },
   });
 }
 
-async function seedSecondAdminProfile(
-  adminId: string,
-  clerkUserId: string,
-  profileImageId: string,
-) {
-  return prisma.adminProfile.upsert({
-    where: { adminUserId: adminId },
-    update: {
-      adminUserId: adminId,
-      clerkUserId,
-      displayName: "Arjun Sen",
-      slug: "arjun-sen",
-      designation: "Editorial systems architect and course producer",
-      bio:
-        "Arjun turns implementation lessons into durable editorial systems. His work focuses on applied analytics, structured courses, and pragmatic content operations.",
-      address: "Kolkata, India",
-      email: "editor@beyondblog.dev",
-      phone: null,
-      experience:
-        "Editorial systems consultant for education teams\nFormer analytics lead for creator platforms\nCourse producer for technical publishing workflows",
-      education:
-        "M.A. Digital Media Strategy\nB.E. Information Technology\nOngoing research in editorial analytics and public learning loops",
-      profileImageId,
-      socials: {
-        linkedinUrl: "https://www.linkedin.com/in/arjunsen-demo",
-        githubUrl: "https://github.com/arjunsen-demo",
-      },
-      copyrightText: `© ${new Date().getFullYear()} Beyond Blog. Built for thoughtful public learning.`,
-    },
-    create: {
-      adminUserId: adminId,
-      clerkUserId,
-      displayName: "Arjun Sen",
-      slug: "arjun-sen",
-      designation: "Editorial systems architect and course producer",
-      bio:
-        "Arjun turns implementation lessons into durable editorial systems. His work focuses on applied analytics, structured courses, and pragmatic content operations.",
-      address: "Kolkata, India",
-      email: "editor@beyondblog.dev",
-      phone: null,
-      experience:
-        "Editorial systems consultant for education teams\nFormer analytics lead for creator platforms\nCourse producer for technical publishing workflows",
-      education:
-        "M.A. Digital Media Strategy\nB.E. Information Technology\nOngoing research in editorial analytics and public learning loops",
-      profileImageId,
-      socials: {
-        linkedinUrl: "https://www.linkedin.com/in/arjunsen-demo",
-        githubUrl: "https://github.com/arjunsen-demo",
-      },
-      copyrightText: `© ${new Date().getFullYear()} Beyond Blog. Built for thoughtful public learning.`,
-    },
-  });
-}
-
-async function seedSiteSettings(featuredFooterProfileId: string) {
+async function seedSiteSettings() {
   await prisma.siteSetting.upsert({
     where: { singletonKey: "SITE_SETTINGS" },
     update: {
@@ -1788,7 +1685,6 @@ async function seedSiteSettings(featuredFooterProfileId: string) {
       defaultQuizAllowMultipleAttempts: true,
       defaultQuizTimeLimitSeconds: 720,
       defaultQuizPassingScore: 70,
-      featuredFooterProfileId,
     },
     create: {
       singletonKey: "SITE_SETTINGS",
@@ -1807,53 +1703,41 @@ async function seedSiteSettings(featuredFooterProfileId: string) {
       defaultQuizAllowMultipleAttempts: true,
       defaultQuizTimeLimitSeconds: 720,
       defaultQuizPassingScore: 70,
-      featuredFooterProfileId,
     },
   });
 }
 
 async function main() {
-  const { users: adminUsers } = await seedAdmins();
-  const media = await seedMedia(adminUsers[0].id);
+  const ownerAdmin = await seedAdmin();
+  const media = await seedMedia(ownerAdmin.id);
   const { categories, tags } = await seedTaxonomy();
-
-  const profileImage = media.get("demo-uploadthing-image-profile-portrait");
-  if (!profileImage) {
-    throw new Error("Missing profile image media seed.");
-  }
-
-  const firstProfile = await seedAdminProfile(adminUsers[0].id, adminUsers[0].clerkUserId, profileImage.id);
-  const secondProfile = await seedSecondAdminProfile(
-    adminUsers[1].id,
-    adminUsers[1].clerkUserId,
-    profileImage.id,
-  );
-  const authorProfileIds = [firstProfile.id, secondProfile.id];
-  const adminUserIds = adminUsers.map((admin) => admin.id);
-
   const contentBySlug = await seedContent({
-    authorProfileIds,
+    adminId: ownerAdmin.id,
     media,
     categories,
     tags,
   });
   const courses = await seedCourses({
-    adminUserIds,
-    authorProfileIds,
+    adminId: ownerAdmin.id,
     media,
   });
 
   await seedComments(contentBySlug);
   await seedLikes(contentBySlug);
   await seedQuizzes({
-    adminUserIds,
-    authorProfileIds,
+    adminId: ownerAdmin.id,
     media,
     contentBySlug,
     courses,
   });
 
-  await seedSiteSettings(firstProfile.id);
+  const profileImage = media.get("demo-uploadthing-image-profile-portrait");
+  if (!profileImage) {
+    throw new Error("Missing profile image media seed.");
+  }
+
+  await seedAdminProfile(ownerAdmin.id, profileImage.id);
+  await seedSiteSettings();
 
   console.log("Seed completed:");
   console.log(`- ${media.size} media assets`);

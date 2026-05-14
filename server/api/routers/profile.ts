@@ -1,22 +1,12 @@
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
-import { z } from "zod";
-import { COURSE_STATUS, MEDIA_TYPE, PUBLISH_STATUS } from "@/lib/content/enums";
+import { MEDIA_TYPE } from "@/lib/content/enums";
 import { adminProfileSettingsInputSchema, normalizeOptionalText } from "@/lib/profile/schemas";
 import { defaultSeoSettings, mergeSeoSettings } from "@/lib/seo/config";
 import { adminSeoSettingsInputSchema } from "@/lib/seo/schemas";
 import { revalidateProfileAndSeoPaths } from "@/lib/cache/revalidate";
 import { createTRPCRouter, adminProcedure, publicProcedure } from "@/server/api/trpc";
 import { createAuditLog } from "@/server/audit/log";
-
-const authorSlugInputSchema = z.object({
-  slug: z
-    .string()
-    .trim()
-    .min(2)
-    .max(160)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-});
 
 async function resolveProfileImageId(args: {
   db: {
@@ -85,26 +75,6 @@ function toRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
-function socialValue(socials: unknown, key: string) {
-  const record = toRecord(socials);
-  const value = record?.[key];
-  return typeof value === "string" ? value : null;
-}
-
-function profileSocials(input: {
-  linkedinUrl?: string | null;
-  githubUrl?: string | null;
-  twitterUrl?: string | null;
-  websiteUrl?: string | null;
-}) {
-  return {
-    linkedinUrl: normalizeOptionalText(input.linkedinUrl),
-    githubUrl: normalizeOptionalText(input.githubUrl),
-    twitterUrl: normalizeOptionalText(input.twitterUrl),
-    websiteUrl: normalizeOptionalText(input.websiteUrl),
-  };
-}
-
 function mergeSocialLinksWithSeo(
   existingSocialLinks: unknown,
   input: {
@@ -140,8 +110,18 @@ function mergeSocialLinksWithSeo(
 export const profileRouter = createTRPCRouter({
   getSettings: adminProcedure.query(async ({ ctx }) => {
     try {
-      const profile = await ctx.db.adminProfile.findUniqueOrThrow({
-        where: { id: ctx.adminProfile.id },
+      const profile = await ctx.db.adminProfile.upsert({
+        where: { singletonKey: "ADMIN_PROFILE" },
+        update:
+          ctx.adminUser.id
+            ? {
+                adminUserId: ctx.adminUser.id,
+              }
+            : {},
+        create: {
+          singletonKey: "ADMIN_PROFILE",
+          adminUserId: ctx.adminUser.id,
+        },
         include: {
           profileImage: {
             select: {
@@ -154,13 +134,7 @@ export const profileRouter = createTRPCRouter({
         },
       });
 
-      return {
-        ...profile,
-        linkedinUrl: socialValue(profile.socials, "linkedinUrl"),
-        githubUrl: socialValue(profile.socials, "githubUrl"),
-        twitterUrl: socialValue(profile.socials, "twitterUrl"),
-        websiteUrl: socialValue(profile.socials, "websiteUrl"),
-      };
+      return profile;
     } catch (error) {
       if (isMissingAdminProfileTableError(error)) {
         throw new TRPCError({
@@ -182,37 +156,41 @@ export const profileRouter = createTRPCRouter({
       });
 
       try {
-        const existingSlug = await ctx.db.adminProfile.findFirst({
-          where: {
-            slug: input.slug,
-            id: {
-              not: ctx.adminProfile.id,
-            },
-          },
-          select: { id: true },
-        });
-
-        if (existingSlug) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "Another admin profile already uses this slug.",
-          });
-        }
-
-        const updated = await ctx.db.adminProfile.update({
-          where: { id: ctx.adminProfile.id },
-          data: {
-            displayName: input.displayName.trim(),
-            slug: input.slug.trim(),
+        const updated = await ctx.db.adminProfile.upsert({
+          where: { singletonKey: "ADMIN_PROFILE" },
+          update: {
+            adminUserId: ctx.adminUser.id,
+            fullName: normalizeOptionalText(input.fullName),
             designation: normalizeOptionalText(input.designation),
             bio: normalizeOptionalText(input.bio),
             address: normalizeOptionalText(input.address),
             email: normalizeOptionalText(input.email),
             phone: normalizeOptionalText(input.phone),
-            experience: normalizeOptionalText(input.experience),
+            jobs: normalizeOptionalText(input.jobs),
             education: normalizeOptionalText(input.education),
             profileImageId,
-            socials: profileSocials(input),
+            linkedinUrl: normalizeOptionalText(input.linkedinUrl),
+            githubUrl: normalizeOptionalText(input.githubUrl),
+            twitterUrl: normalizeOptionalText(input.twitterUrl),
+            websiteUrl: normalizeOptionalText(input.websiteUrl),
+            copyrightText: normalizeOptionalText(input.copyrightText),
+          },
+          create: {
+            singletonKey: "ADMIN_PROFILE",
+            adminUserId: ctx.adminUser.id,
+            fullName: normalizeOptionalText(input.fullName),
+            designation: normalizeOptionalText(input.designation),
+            bio: normalizeOptionalText(input.bio),
+            address: normalizeOptionalText(input.address),
+            email: normalizeOptionalText(input.email),
+            phone: normalizeOptionalText(input.phone),
+            jobs: normalizeOptionalText(input.jobs),
+            education: normalizeOptionalText(input.education),
+            profileImageId,
+            linkedinUrl: normalizeOptionalText(input.linkedinUrl),
+            githubUrl: normalizeOptionalText(input.githubUrl),
+            twitterUrl: normalizeOptionalText(input.twitterUrl),
+            websiteUrl: normalizeOptionalText(input.websiteUrl),
             copyrightText: normalizeOptionalText(input.copyrightText),
           },
           include: {
@@ -227,18 +205,6 @@ export const profileRouter = createTRPCRouter({
           },
         });
 
-        await ctx.db.siteSetting.upsert({
-          where: { singletonKey: "SITE_SETTINGS" },
-          update: {
-            featuredFooterProfileId: updated.id,
-          },
-          create: {
-            singletonKey: "SITE_SETTINGS",
-            siteTitle: defaultSeoSettings.siteTitle,
-            featuredFooterProfileId: updated.id,
-          },
-        });
-
         await createAuditLog({
           db: ctx.db,
           adminUserId: ctx.adminUser.id,
@@ -246,8 +212,7 @@ export const profileRouter = createTRPCRouter({
           entityType: "ADMIN_PROFILE",
           entityId: updated.id,
           metadata: {
-            displayName: updated.displayName,
-            slug: updated.slug,
+            fullName: updated.fullName,
             designation: updated.designation,
             hasProfileImage: Boolean(updated.profileImageId),
           },
@@ -272,13 +237,7 @@ export const profileRouter = createTRPCRouter({
     try {
       const profile = await ctx.db.adminProfile.findUnique({
         where: {
-          id:
-            (
-              await ctx.db.siteSetting.findUnique({
-                where: { singletonKey: "SITE_SETTINGS" },
-                select: { featuredFooterProfileId: true },
-              })
-            )?.featuredFooterProfileId ?? "",
+          singletonKey: "ADMIN_PROFILE",
         },
         include: {
           profileImage: {
@@ -293,58 +252,23 @@ export const profileRouter = createTRPCRouter({
       });
 
       if (!profile) {
-        const fallback = await ctx.db.adminProfile.findFirst({
-          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-          include: {
-            profileImage: {
-              select: {
-                id: true,
-                url: true,
-                thumbnailUrl: true,
-                altText: true,
-              },
-            },
-          },
-        });
-
-        if (!fallback) {
-          return null;
-        }
-
-        return {
-          displayName: fallback.displayName,
-          slug: fallback.slug,
-          designation: fallback.designation,
-          bio: fallback.bio,
-          address: fallback.address,
-          email: fallback.email,
-          phone: fallback.phone,
-          experience: fallback.experience,
-          education: fallback.education,
-          profileImage: fallback.profileImage,
-          linkedinUrl: socialValue(fallback.socials, "linkedinUrl"),
-          githubUrl: socialValue(fallback.socials, "githubUrl"),
-          twitterUrl: socialValue(fallback.socials, "twitterUrl"),
-          websiteUrl: socialValue(fallback.socials, "websiteUrl"),
-          copyrightText: fallback.copyrightText,
-        };
+        return null;
       }
 
       return {
-        displayName: profile.displayName,
-        slug: profile.slug,
+        fullName: profile.fullName,
         designation: profile.designation,
         bio: profile.bio,
         address: profile.address,
         email: profile.email,
         phone: profile.phone,
-        experience: profile.experience,
+        jobs: profile.jobs,
         education: profile.education,
         profileImage: profile.profileImage,
-        linkedinUrl: socialValue(profile.socials, "linkedinUrl"),
-        githubUrl: socialValue(profile.socials, "githubUrl"),
-        twitterUrl: socialValue(profile.socials, "twitterUrl"),
-        websiteUrl: socialValue(profile.socials, "websiteUrl"),
+        linkedinUrl: profile.linkedinUrl,
+        githubUrl: profile.githubUrl,
+        twitterUrl: profile.twitterUrl,
+        websiteUrl: profile.websiteUrl,
         copyrightText: profile.copyrightText,
       };
     } catch (error) {
@@ -359,160 +283,54 @@ export const profileRouter = createTRPCRouter({
   }),
 
   getPublicIdentity: publicProcedure.query(async ({ ctx }) => {
-    const profile = await ctx.db.adminProfile.findFirst({
-      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    const admin = await ctx.db.adminUser.findFirst({
+      where: {
+        role: "OWNER",
+      },
       select: {
-        displayName: true,
-        slug: true,
+        firstName: true,
+        lastName: true,
         email: true,
-        profileImage: {
-          select: {
-            url: true,
-          },
-        },
-        adminUser: {
-          select: {
-            imageUrl: true,
-          },
-        },
+        imageUrl: true,
       },
     });
 
-    if (!profile) {
+    if (!admin) {
       return {
         name: "Beyond Blog Admin",
-        slug: null as string | null,
         imageUrl: null as string | null,
       };
     }
 
-    return {
-      name: profile.displayName,
-      slug: profile.slug,
-      imageUrl: profile.profileImage?.url ?? profile.adminUser.imageUrl,
-    };
-  }),
+    const fallbackName = `${admin.firstName ?? ""} ${admin.lastName ?? ""}`.trim() || admin.email;
+    let profileName: string | null = null;
+    let profileImageUrl: string | null = null;
 
-  listAuthors: publicProcedure.query(async ({ ctx }) => {
-    return ctx.db.adminProfile.findMany({
-      orderBy: [{ createdAt: "asc" }, { displayName: "asc" }],
-      select: {
-        id: true,
-        displayName: true,
-        slug: true,
-        designation: true,
-        bio: true,
-        socials: true,
-        profileImage: {
-          select: {
-            id: true,
-            url: true,
-            thumbnailUrl: true,
-            altText: true,
-          },
+    try {
+      const profile = await ctx.db.adminProfile.findUnique({
+        where: {
+          singletonKey: "ADMIN_PROFILE",
         },
-        _count: {
-          select: {
-            contents: {
-              where: { publishStatus: PUBLISH_STATUS.PUBLISHED },
-            },
-            courses: {
-              where: { status: COURSE_STATUS.PUBLISHED },
+        include: {
+          profileImage: {
+            select: {
+              url: true,
             },
           },
         },
-      },
-    });
-  }),
-
-  getAuthorBySlug: publicProcedure.input(authorSlugInputSchema).query(async ({ ctx, input }) => {
-    const author = await ctx.db.adminProfile.findUnique({
-      where: { slug: input.slug },
-      include: {
-        profileImage: {
-          select: {
-            id: true,
-            url: true,
-            thumbnailUrl: true,
-            altText: true,
-          },
-        },
-        contents: {
-          where: { publishStatus: PUBLISH_STATUS.PUBLISHED },
-          orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
-          include: {
-            category: {
-              select: {
-                name: true,
-                slug: true,
-              },
-            },
-            coverImage: {
-              select: {
-                url: true,
-                altText: true,
-              },
-            },
-            author: {
-              select: {
-                displayName: true,
-                slug: true,
-              },
-            },
-            tags: {
-              include: {
-                tag: {
-                  select: {
-                    name: true,
-                    slug: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-        courses: {
-          where: { status: COURSE_STATUS.PUBLISHED },
-          orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
-          include: {
-            coverImage: {
-              select: {
-                id: true,
-                url: true,
-                thumbnailUrl: true,
-                altText: true,
-              },
-            },
-            author: {
-              select: {
-                displayName: true,
-                slug: true,
-              },
-            },
-            _count: {
-              select: {
-                sections: true,
-                lessons: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!author) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Author profile not found.",
       });
+
+      profileName = profile?.fullName ?? null;
+      profileImageUrl = profile?.profileImage?.url ?? null;
+    } catch (error) {
+      if (!isMissingAdminProfileTableError(error)) {
+        throw error;
+      }
     }
 
     return {
-      ...author,
-      linkedinUrl: socialValue(author.socials, "linkedinUrl"),
-      githubUrl: socialValue(author.socials, "githubUrl"),
-      twitterUrl: socialValue(author.socials, "twitterUrl"),
-      websiteUrl: socialValue(author.socials, "websiteUrl"),
+      name: profileName ?? fallbackName,
+      imageUrl: profileImageUrl ?? admin.imageUrl,
     };
   }),
 
@@ -683,3 +501,4 @@ export const profileRouter = createTRPCRouter({
     }
   }),
 });
+

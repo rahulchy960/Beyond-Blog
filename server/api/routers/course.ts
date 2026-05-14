@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import {
   COURSE_LESSON_ITEM_TYPE,
   COURSE_STATUS,
@@ -73,24 +73,7 @@ const lessonMediaSelect = {
   externalUrl: true,
 } as const;
 
-const authorSelect = {
-  id: true,
-  displayName: true,
-  slug: true,
-  profileImage: {
-    select: {
-      id: true,
-      url: true,
-      thumbnailUrl: true,
-      altText: true,
-    },
-  },
-} as const;
-
 const adminCourseInclude = {
-  author: {
-    select: authorSelect,
-  },
   coverImage: {
     select: courseCoverSelect,
   },
@@ -125,36 +108,6 @@ const adminCourseInclude = {
     },
   },
 } as const;
-
-function assertOwnsCourse(authorId: string | null, currentProfileId: string) {
-  if (authorId && authorId !== currentProfileId) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "You can only edit courses authored by your admin profile.",
-    });
-  }
-}
-
-async function assertOwnsCourseById(
-  db: Pick<PrismaClient, "course">,
-  courseId: string,
-  currentProfileId: string,
-) {
-  const course = await db.course.findUnique({
-    where: { id: courseId },
-    select: { id: true, authorId: true },
-  });
-
-  if (!course) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "Course not found.",
-    });
-  }
-
-  assertOwnsCourse(course.authorId, currentProfileId);
-  return course;
-}
 
 type DbLike = {
   course: {
@@ -471,7 +424,6 @@ export const courseRouter = createTRPCRouter({
         seoDescription: normalizeOptionalText(input.seoDescription),
         publishedAt: input.status === COURSE_STATUS.PUBLISHED ? new Date() : null,
         createdByAdminId: ctx.adminUser.id,
-        authorId: ctx.adminProfile.id,
       },
       include: adminCourseInclude,
     });
@@ -511,7 +463,6 @@ export const courseRouter = createTRPCRouter({
         message: "Course not found.",
       });
     }
-    assertOwnsCourse(existing.authorId, ctx.adminProfile.id);
 
     const slug = slugifyText(input.slug);
     if (!slug) {
@@ -580,13 +531,10 @@ export const courseRouter = createTRPCRouter({
       where: { id: input.id },
       select: {
         id: true,
-        authorId: true,
         title: true,
         slug: true,
       },
     });
-
-    assertOwnsCourse(existing?.authorId ?? null, ctx.adminProfile.id);
 
     await ctx.db.course.delete({
       where: { id: input.id },
@@ -614,7 +562,6 @@ export const courseRouter = createTRPCRouter({
 
   listForAdmin: adminProcedure.input(listAdminCoursesInputSchema).query(async ({ ctx, input }) => {
     const where = {
-      authorId: ctx.adminProfile.id,
       ...(input.status ? { status: input.status } : {}),
       ...(input.featured === "featured"
         ? { isFeatured: true }
@@ -657,9 +604,6 @@ export const courseRouter = createTRPCRouter({
           coverImage: {
             select: courseCoverSelect,
           },
-          author: {
-            select: authorSelect,
-          },
           _count: {
             select: {
               sections: true,
@@ -691,7 +635,6 @@ export const courseRouter = createTRPCRouter({
         message: "Course not found.",
       });
     }
-    assertOwnsCourse(course.authorId, ctx.adminProfile.id);
 
     return {
       ...normalizeCoursePayload(course),
@@ -705,7 +648,7 @@ export const courseRouter = createTRPCRouter({
 
   publish: adminProcedure.input(updateCourseStatusInputSchema).mutation(async ({ ctx, input }) => {
     const updated = await ctx.db.course.update({
-      where: { id: input.id, authorId: ctx.adminProfile.id },
+      where: { id: input.id },
       data: {
         status: COURSE_STATUS.PUBLISHED,
         publishedAt: new Date(),
@@ -737,7 +680,7 @@ export const courseRouter = createTRPCRouter({
 
   unpublish: adminProcedure.input(updateCourseStatusInputSchema).mutation(async ({ ctx, input }) => {
     const updated = await ctx.db.course.update({
-      where: { id: input.id, authorId: ctx.adminProfile.id },
+      where: { id: input.id },
       data: {
         status: COURSE_STATUS.DRAFT,
         publishedAt: null,
@@ -769,7 +712,7 @@ export const courseRouter = createTRPCRouter({
 
   archive: adminProcedure.input(updateCourseStatusInputSchema).mutation(async ({ ctx, input }) => {
     const updated = await ctx.db.course.update({
-      where: { id: input.id, authorId: ctx.adminProfile.id },
+      where: { id: input.id },
       data: {
         status: COURSE_STATUS.ARCHIVED,
       },
@@ -803,7 +746,7 @@ export const courseRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const current = await ctx.db.course.findUnique({
         where: { id: input.id },
-        select: { isFeatured: true, authorId: true },
+        select: { isFeatured: true },
       });
 
       if (!current) {
@@ -812,7 +755,6 @@ export const courseRouter = createTRPCRouter({
           message: "Course not found.",
         });
       }
-      assertOwnsCourse(current.authorId, ctx.adminProfile.id);
 
       const updated = await ctx.db.course.update({
         where: { id: input.id },
@@ -847,7 +789,17 @@ export const courseRouter = createTRPCRouter({
   createSection: adminProcedure
     .input(createCourseSectionInputSchema)
     .mutation(async ({ ctx, input }) => {
-      await assertOwnsCourseById(ctx.db, input.courseId, ctx.adminProfile.id);
+      const course = await ctx.db.course.findUnique({
+        where: { id: input.courseId },
+        select: { id: true },
+      });
+
+      if (!course) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Course not found.",
+        });
+      }
 
       const order = await getNextSectionOrder(ctx.db, input.courseId);
 
@@ -878,12 +830,6 @@ export const courseRouter = createTRPCRouter({
   updateSection: adminProcedure
     .input(updateCourseSectionInputSchema)
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.db.courseSection.findUnique({
-        where: { id: input.id },
-        select: { course: { select: { authorId: true } } },
-      });
-      assertOwnsCourse(existing?.course.authorId ?? null, ctx.adminProfile.id);
-
       const section = await ctx.db.courseSection.update({
         where: { id: input.id },
         data: {
@@ -916,10 +862,8 @@ export const courseRouter = createTRPCRouter({
           id: true,
           courseId: true,
           title: true,
-          course: { select: { authorId: true } },
         },
       });
-      assertOwnsCourse(existing?.course.authorId ?? null, ctx.adminProfile.id);
 
       await ctx.db.courseLesson.updateMany({
         where: {
@@ -952,7 +896,6 @@ export const courseRouter = createTRPCRouter({
   reorderSections: adminProcedure
     .input(reorderCourseSectionsInputSchema)
     .mutation(async ({ ctx, input }) => {
-      await assertOwnsCourseById(ctx.db, input.courseId, ctx.adminProfile.id);
       const uniqueIds = Array.from(new Set(input.sectionIds));
       if (uniqueIds.length !== input.sectionIds.length) {
         throw new TRPCError({
@@ -1006,7 +949,17 @@ export const courseRouter = createTRPCRouter({
   createLesson: adminProcedure
     .input(createCourseLessonInputSchema)
     .mutation(async ({ ctx, input }) => {
-      await assertOwnsCourseById(ctx.db, input.courseId, ctx.adminProfile.id);
+      const course = await ctx.db.course.findUnique({
+        where: { id: input.courseId },
+        select: { id: true },
+      });
+
+      if (!course) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Course not found.",
+        });
+      }
 
       validateLessonPayload(input);
 
@@ -1088,7 +1041,6 @@ export const courseRouter = createTRPCRouter({
           message: "Lesson not found.",
         });
       }
-      await assertOwnsCourseById(ctx.db, input.courseId, ctx.adminProfile.id);
 
       validateLessonPayload(input);
 
@@ -1162,10 +1114,8 @@ export const courseRouter = createTRPCRouter({
           courseId: true,
           title: true,
           itemType: true,
-          course: { select: { authorId: true } },
         },
       });
-      assertOwnsCourse(existing?.course.authorId ?? null, ctx.adminProfile.id);
 
       await ctx.db.courseLesson.delete({
         where: { id: input.id },
@@ -1190,7 +1140,6 @@ export const courseRouter = createTRPCRouter({
   reorderLessons: adminProcedure
     .input(reorderCourseLessonsInputSchema)
     .mutation(async ({ ctx, input }) => {
-      await assertOwnsCourseById(ctx.db, input.courseId, ctx.adminProfile.id);
       const uniqueIds = Array.from(new Set(input.lessonIds));
       if (uniqueIds.length !== input.lessonIds.length) {
         throw new TRPCError({
@@ -1255,7 +1204,6 @@ export const courseRouter = createTRPCRouter({
         select: {
           id: true,
           itemType: true,
-          course: { select: { authorId: true } },
         },
       });
 
@@ -1265,7 +1213,6 @@ export const courseRouter = createTRPCRouter({
           message: "Lesson not found.",
         });
       }
-      assertOwnsCourse(lesson.course.authorId, ctx.adminProfile.id);
 
       const mediaAssetId = await assertLessonMediaCompatible({
         db: ctx.db,
@@ -1301,12 +1248,6 @@ export const courseRouter = createTRPCRouter({
   detachLessonMedia: adminProcedure
     .input(detachLessonMediaInputSchema)
     .mutation(async ({ ctx, input }) => {
-      const lesson = await ctx.db.courseLesson.findUnique({
-        where: { id: input.lessonId },
-        select: { course: { select: { authorId: true } } },
-      });
-      assertOwnsCourse(lesson?.course.authorId ?? null, ctx.adminProfile.id);
-
       const updated = await ctx.db.courseLesson.update({
         where: { id: input.lessonId },
         data: {
@@ -1362,9 +1303,6 @@ export const courseRouter = createTRPCRouter({
             coverImage: {
               select: courseCoverSelect,
             },
-            author: {
-              select: authorSelect,
-            },
             _count: {
               select: {
                 sections: true,
@@ -1395,9 +1333,6 @@ export const courseRouter = createTRPCRouter({
             include: {
               coverImage: {
                 select: courseCoverSelect,
-              },
-              author: {
-                select: authorSelect,
               },
               sections: {
                 orderBy: {
@@ -1467,3 +1402,4 @@ export const courseRouter = createTRPCRouter({
       };
     }),
 });
+

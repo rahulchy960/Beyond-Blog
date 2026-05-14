@@ -496,7 +496,6 @@ export const quizRouter = createTRPCRouter({
         seoTitle: normalizeOptionalText(input.seoTitle),
         seoDescription: normalizeOptionalText(input.seoDescription),
         createdByAdminId: ctx.adminUser.id,
-        authorId: ctx.adminProfile.id,
         publishedAt: input.status === QUIZ_STATUS.PUBLISHED ? new Date() : null,
       },
       select: {

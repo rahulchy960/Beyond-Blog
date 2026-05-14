@@ -93,9 +93,8 @@ export async function findOwnerAdmin(): Promise<AdminUser | null> {
   const delegate = getAdminDelegate();
 
   if (delegate) {
-    return delegate.findFirst({
+    return delegate.findUnique({
       where: { role: OWNER_ADMIN_ROLE },
-      orderBy: { createdAt: "asc" },
     });
   }
 

@@ -71,7 +71,10 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
     notFound();
   }
 
-  const seo = await getSeoSettings();
+  const [seo, identity] = await Promise.all([
+    getSeoSettings(),
+    caller.profile.getPublicIdentity(),
+  ]);
 
   const articleSchema = buildArticleSchema({
     seo,
@@ -81,7 +84,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
     publishedAt: content.publishedAt,
     updatedAt: content.updatedAt,
     imageUrl: content.coverImage?.url ?? null,
-    authorName: content.author?.displayName,
+    authorName: identity.name,
     kind: "Article",
   });
   const breadcrumbSchema = buildBreadcrumbSchema(
@@ -106,3 +109,4 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
     </SiteContainer>
   );
 }
+

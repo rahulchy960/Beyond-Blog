@@ -18,7 +18,6 @@ import { buttonVariants } from "@/lib/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { getPublicServerCaller } from "@/server/api/caller";
 import { type DiscoveryResultItem } from "@/types/discovery";
-import { platformName } from "@/lib/constants";
 
 export const revalidate = 300;
 
@@ -34,25 +33,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function HomePage() {
   const caller = await getPublicServerCaller();
-  const emptyHome = {
-    featuredContent: [],
-    featuredCourses: [],
-    featuredQuizzes: [],
-    recentMixed: [],
-    discoveryCategories: [],
-    discoveryTags: [],
-  };
   const [home, identity, profile, seo] = await Promise.all([
     caller.discovery.homepageSections({
       featuredLimit: 4,
       recentLimit: 10,
-    }).catch(() => emptyHome),
-    caller.profile.getPublicIdentity().catch(() => ({
-      name: platformName,
-      slug: null,
-      imageUrl: null,
-    })),
-    caller.profile.getPublicFooterProfile().catch(() => null),
+    }),
+    caller.profile.getPublicIdentity(),
+    caller.profile.getPublicFooterProfile(),
     getSeoSettings(),
   ]);
 
@@ -213,3 +200,4 @@ export default async function HomePage() {
     </div>
   );
 }
+

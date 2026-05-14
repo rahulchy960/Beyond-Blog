@@ -21,14 +21,6 @@ import { createAuditLog } from "@/server/audit/log";
 import { revalidateContentPaths } from "@/lib/cache/revalidate";
 
 const adminContentInclude = {
-  author: {
-    select: {
-      id: true,
-      displayName: true,
-      slug: true,
-      profileImage: true,
-    },
-  },
   category: true,
   coverImage: true,
   tags: {
@@ -37,29 +29,6 @@ const adminContentInclude = {
     },
   },
 } as const;
-
-const authorSelect = {
-  id: true,
-  displayName: true,
-  slug: true,
-  profileImage: {
-    select: {
-      id: true,
-      url: true,
-      thumbnailUrl: true,
-      altText: true,
-    },
-  },
-} as const;
-
-function assertOwnsContent(authorId: string | null, currentProfileId: string) {
-  if (authorId && authorId !== currentProfileId) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "You can only edit content authored by your admin profile.",
-    });
-  }
-}
 
 async function assertSlugUnique(
   slug: string,
@@ -229,7 +198,6 @@ function toAdminContentPayload(
         }
       : null,
     tagNames: content.tags.map((tagLink) => tagLink.tag.name),
-    author: content.author,
   };
 }
 
@@ -269,7 +237,7 @@ export const contentRouter = createTRPCRouter({
           seoTitle: normalizeOptionalText(input.seoTitle),
           seoDescription: normalizeOptionalText(input.seoDescription),
           publishedAt: shouldPublish ? new Date() : null,
-          authorId: ctx.adminProfile.id,
+          authorId: ctx.adminUser.id,
           categoryId: normalizeOptionalText(input.categoryId),
           coverImageAssetId,
         },
@@ -321,7 +289,6 @@ export const contentRouter = createTRPCRouter({
         message: "Content not found.",
       });
     }
-    assertOwnsContent(existing.authorId, ctx.adminProfile.id);
 
     const slug = slugifyText(input.slug);
     if (!slug) {
@@ -403,7 +370,6 @@ export const contentRouter = createTRPCRouter({
       where: { id: input.id },
       select: {
         id: true,
-        authorId: true,
         title: true,
         type: true,
         slug: true,
@@ -423,8 +389,6 @@ export const contentRouter = createTRPCRouter({
         },
       },
     });
-
-    assertOwnsContent(existing?.authorId ?? null, ctx.adminProfile.id);
 
     await ctx.db.content.delete({
       where: { id: input.id },
@@ -466,7 +430,6 @@ export const contentRouter = createTRPCRouter({
         message: "Content not found.",
       });
     }
-    assertOwnsContent(content.authorId, ctx.adminProfile.id);
 
     return toAdminContentPayload(content);
   }),
@@ -486,14 +449,12 @@ export const contentRouter = createTRPCRouter({
         message: "Content not found.",
       });
     }
-    assertOwnsContent(content.authorId, ctx.adminProfile.id);
 
     return toAdminContentPayload(content);
   }),
 
   listForAdmin: adminProcedure.input(listAdminContentInputSchema).query(async ({ ctx, input }) => {
     const where = {
-      authorId: ctx.adminProfile.id,
       ...(input.type ? { type: input.type } : {}),
       ...(input.status ? { publishStatus: input.status } : {}),
       ...(input.featured === "featured"
@@ -552,9 +513,6 @@ export const contentRouter = createTRPCRouter({
             },
             take: 4,
           },
-          author: {
-            select: authorSelect,
-          },
         },
       }),
       ctx.db.content.count({ where }),
@@ -569,8 +527,8 @@ export const contentRouter = createTRPCRouter({
   }),
 
   publish: adminProcedure.input(updateContentStatusInputSchema).mutation(async ({ ctx, input }) => {
-      const updated = await ctx.db.content.update({
-      where: { id: input.id, authorId: ctx.adminProfile.id },
+    const updated = await ctx.db.content.update({
+      where: { id: input.id },
       data: {
         publishStatus: PUBLISH_STATUS.PUBLISHED,
         publishedAt: new Date(),
@@ -622,7 +580,7 @@ export const contentRouter = createTRPCRouter({
     .input(updateContentStatusInputSchema)
     .mutation(async ({ ctx, input }) => {
       const updated = await ctx.db.content.update({
-        where: { id: input.id, authorId: ctx.adminProfile.id },
+        where: { id: input.id },
         data: {
           publishStatus: PUBLISH_STATUS.DRAFT,
           publishedAt: null,
@@ -672,7 +630,7 @@ export const contentRouter = createTRPCRouter({
 
   archive: adminProcedure.input(updateContentStatusInputSchema).mutation(async ({ ctx, input }) => {
     const updated = await ctx.db.content.update({
-      where: { id: input.id, authorId: ctx.adminProfile.id },
+      where: { id: input.id },
       data: {
         publishStatus: PUBLISH_STATUS.ARCHIVED,
       },
@@ -720,10 +678,10 @@ export const contentRouter = createTRPCRouter({
   }),
 
   toggleFeatured: adminProcedure.input(toggleFeaturedInputSchema).mutation(async ({ ctx, input }) => {
-      const current = await ctx.db.content.findUnique({
-        where: { id: input.id },
-      select: { isFeatured: true, authorId: true },
-      });
+    const current = await ctx.db.content.findUnique({
+      where: { id: input.id },
+      select: { isFeatured: true },
+    });
 
     if (!current) {
       throw new TRPCError({
@@ -731,7 +689,6 @@ export const contentRouter = createTRPCRouter({
         message: "Content not found.",
       });
     }
-    assertOwnsContent(current.authorId, ctx.adminProfile.id);
 
     const updated = await ctx.db.content.update({
       where: { id: input.id },
@@ -902,9 +859,6 @@ export const contentRouter = createTRPCRouter({
             altText: true,
           },
         },
-        author: {
-          select: authorSelect,
-        },
         tags: {
           include: {
             tag: {
@@ -950,9 +904,6 @@ export const contentRouter = createTRPCRouter({
                 },
               },
             },
-          },
-          author: {
-            select: authorSelect,
           },
         },
       });

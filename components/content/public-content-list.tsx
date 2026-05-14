@@ -14,7 +14,6 @@ type PublicContentListItem = {
   summary: string | null;
   publishedAt: Date | null;
   category: { name: string; slug: string } | null;
-  author?: { displayName: string; slug: string } | null;
   tags: Array<{ tag: { name: string; slug: string } }>;
 };
 
@@ -49,11 +48,6 @@ export function PublicContentList({ type, items }: PublicContentListProps) {
               <p className="meta-kicker">Lead {meta.singular}</p>
               <h3 className="text-3xl font-semibold tracking-tight md:text-4xl">{lead.title}</h3>
               {lead.summary ? <p className="max-w-3xl text-sm text-muted-foreground">{lead.summary}</p> : null}
-              {lead.author ? (
-                <Link href={`/authors/${lead.author.slug}`} className="text-sm text-muted-foreground hover:text-foreground">
-                  By {lead.author.displayName}
-                </Link>
-              ) : null}
               <div className="pt-1">
                 <Link href={`${meta.publicBasePath}/${lead.slug}`} className={buttonVariants({ size: "sm" })}>
                   Read {meta.singular.toLowerCase()}

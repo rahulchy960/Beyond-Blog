@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 import { MEDIA_TYPE } from "@/lib/content/enums";
-import { getCurrentAdminContext } from "@/lib/auth/admin";
+import { findAdminByClerkUserId } from "@/lib/auth/admin-repository";
 import { getUploadThingFileUrl } from "@/lib/uploadthing/file-metadata";
 import { createAuditLog } from "@/server/audit/log";
 import { db } from "@/server/db";
@@ -30,12 +30,12 @@ async function requireUploadAdmin() {
     throw new UploadThingError("Sign-in required.");
   }
 
-  const adminContext = await getCurrentAdminContext({ syncProfile: true });
-  if (!adminContext) {
-    throw new UploadThingError("Only configured Beyond Blog admins can upload files.");
+  const adminUser = await findAdminByClerkUserId(userId);
+  if (!adminUser || !adminUser.isActive || adminUser.role !== "OWNER") {
+    throw new UploadThingError("Only the configured Beyond Blog admin can upload files.");
   }
 
-  return adminContext.adminUser;
+  return adminUser;
 }
 
 export const beyondBlogFileRouter = {

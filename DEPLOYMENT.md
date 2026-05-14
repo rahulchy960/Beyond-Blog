@@ -20,7 +20,7 @@ Set these in Vercel project settings:
 - `CLERK_SECRET_KEY` (`sk_live_...`)
 - `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
 - `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-in`
-- `ALLOWED_ADMIN_IDS`
+- `SINGLE_ADMIN_CLERK_USER_ID`
 - `SINGLE_ADMIN_EMAIL`
 - `SINGLE_ADMIN_FIRST_NAME` (optional)
 - `SINGLE_ADMIN_LAST_NAME` (optional)

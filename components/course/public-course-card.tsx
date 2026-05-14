@@ -21,7 +21,6 @@ type PublicCourseCardProps = {
       thumbnailUrl: string | null;
       altText: string | null;
     } | null;
-    author?: { displayName: string; slug: string } | null;
     _count: {
       lessons: number;
       sections: number;
@@ -66,11 +65,6 @@ export function PublicCourseCard({ course }: PublicCourseCardProps) {
           </div>
 
           <h3 className="text-2xl leading-tight font-semibold tracking-tight">{course.title}</h3>
-          {course.author ? (
-            <Link href={`/authors/${course.author.slug}`} className="text-sm text-muted-foreground hover:text-foreground">
-              By {course.author.displayName}
-            </Link>
-          ) : null}
           {course.summary ? <p className="text-sm leading-7 text-muted-foreground">{course.summary}</p> : null}
 
           <Link href={`/courses/${course.slug}`} className={cn(buttonVariants({ size: "sm" }), "mt-1")}>Explore course</Link>
@@ -79,3 +73,4 @@ export function PublicCourseCard({ course }: PublicCourseCardProps) {
     </article>
   );
 }
+
